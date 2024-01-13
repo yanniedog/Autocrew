@@ -10,36 +10,35 @@ def initialize_ollama(model='openhermes'):
     return Ollama(model=model, verbose=True)
 
 # Get agent data from Ollama
-def get_agent_data(ollama, overall_goal):
+def get_agent_data(ollama, overall_goal, delimiter):
     instruction = (
         f"Create a dataset in a CSV format with each field enclosed in double quotes, for a team of agents with the goal: '{overall_goal}'. "
+        f"Use the delimiter '{delimiter}' to separate the fields. "
         "Include columns 'role', 'goal', 'backstory', 'assigned_task', 'allow_delegation'. "
-        "Each agent's details should be in quotes to avoid confusion with the comma delimiter. "
-        "Provide a unique role, specific goal, brief backstory, assigned task, and delegation ability (True/False) for each agent."
+        "Each agent's details should be in quotes to avoid confusion with the delimiter. "
+        "Provide a single-word role, specific goal, brief backstory, assigned task, and delegation ability (True/False) for each agent."
     )
-    response = ollama.invoke(instruction.format(overall_goal=overall_goal))
+    response = ollama.invoke(instruction.format(overall_goal=overall_goal, delimiter=delimiter))
     print("Ollama's CSV Output:")
     print(response)
     return response
 
 # Parse CSV data from Ollama's response
-def parse_csv_data(response):
+def parse_csv_data(response, delimiter=','):
     header = ['role', 'goal', 'backstory', 'assigned_task', 'allow_delegation']
     agents_data = []
-
-    # Use csv.reader to handle complex CSV structures correctly
-    reader = csv.reader(io.StringIO(response), delimiter=',', quotechar='"')
-    
-    # Skip the header row
-    next(reader)
-
-    for row in reader:
-        if len(row) == len(header):
-            agent_data = dict(zip(header, row))
-            agents_data.append(agent_data)
+    lines = response.strip().split('\n')
+    for line in lines[1:]:
+        row = line.strip().split(delimiter)
+        if len(row) > len(header):
+            # Concatenate the role component if it is split across multiple fields
+            role = delimiter.join(row[:len(header)-1])
+            agent_data = dict(zip(header, [role] + row[len(header)-1:]))
         else:
-            print(f"Warning: Row skipped due to incorrect number of fields: {row}")
-
+            agent_data = dict(zip(header, row))
+        if 'role' not in agent_data or not agent_data['role']:
+            raise ValueError("Role component missing in CSV data")
+        agents_data.append(agent_data)
     return agents_data
 
 # Define an agent for the CrewAI script
@@ -67,8 +66,7 @@ def define_task(agent):
 
 # Write the CrewAI script based on the agent and task data
 def write_crewai_script(agents_data, file_path, ollama_openhermes, search_tool):
-    with open(file_path,
-        'w') as file:
+    with open(file_path, 'w') as file:
         # Writing imports and initializations
         file.write(
             "import os\n"
@@ -107,11 +105,12 @@ def main():
     try:
         ollama = initialize_ollama()
         overall_goal = input("Please specify the overall goal: ")
-        response = get_agent_data(ollama, overall_goal)
+        delimiter = input("Please specify the delimiter used in the CSV data: ")
+        response = get_agent_data(ollama, overall_goal, delimiter)
         if not response:
             raise ValueError("No response from Ollama")
 
-        agents_data = parse_csv_data(response)
+        agents_data = parse_csv_data(response, delimiter)
         if not agents_data:
             raise ValueError("No agent data parsed")
 
