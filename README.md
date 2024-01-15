@@ -23,7 +23,7 @@ This script automates the process of creating a CrewAI team with agents, tasks, 
 1. Clone the repository:
 
    ```
-   git clone https://github.com/yourusername/crewai-autocrew.git
+   git clone https://github.com/yanniedog/crewai-autocrew.git
    ```
 
 2. Change to the project directory:
@@ -57,7 +57,7 @@ This script automates the process of creating a CrewAI team with agents, tasks, 
 3. To run the generated CrewAI script automatically, use the `-a` or `--autorun` option:
 
    ```
-   python autocrew.py "Find the best pizza restaurants in New York" -a
+   python autocrew.py -a "Find the best pizza restaurants in New York"
    ```
 
 ## Customization
