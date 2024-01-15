@@ -3,6 +3,7 @@ import io
 import os
 import traceback
 from datetime import datetime
+import argparse
 from langchain_community.llms import Ollama
 from langchain_community.tools import DuckDuckGoSearchRun
 from crewai import Agent, Task, Crew, Process
@@ -13,6 +14,7 @@ def initialize_ollama(model='openhermes'):
 
 # Get agent data from Ollama
 def get_agent_data(ollama, overall_goal, delimiter):
+    print("Sending request to LLM...")
     instruction = (
         f'Create a dataset in a CSV format with each field enclosed in double quotes, for a team of agents with the goal: "{overall_goal}". '
         f'Use the delimiter "{delimiter}" to separate the fields. '
@@ -21,7 +23,7 @@ def get_agent_data(ollama, overall_goal, delimiter):
         'Provide a single-word role, specific goal, brief backstory, assigned task, and delegation ability (True/False) for each agent.'
     )
     response = ollama.invoke(instruction.format(overall_goal=overall_goal, delimiter=delimiter))
-    print("Ollama\'s CSV Output:")
+    print("\nOllama's CSV Output:")
     print(response)
     return response
 
@@ -29,9 +31,10 @@ def get_agent_data(ollama, overall_goal, delimiter):
 def save_csv_output(response, overall_goal):
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     file_name = f'crewai-autocrew-{timestamp}-{overall_goal.replace(" ", "-")}.csv'
-    with open(file_name, 'w') as file:
+    file_path = os.path.join(os.getcwd(), file_name)
+    with open(file_path, 'w') as file:
         file.write(response)
-    print(f'Ollama\'s CSV output saved as {file_name}')
+    print(f'\nOllama\'s CSV output saved as {file_path}')
 
 # Parse CSV data from Ollama's response
 def parse_csv_data(response, delimiter=','):
@@ -59,7 +62,7 @@ def parse_csv_data(response, delimiter=','):
 
 # Define an agent for the CrewAI script
 def define_agent(agent, search_tool):
-    role_var = agent['role'].replace(' ', '_').replace('-', '_')
+    role_var = agent['role'].replace(' ', '_').replace('-', '_').replace('.', '_')
     role_value = agent['role'].replace('"', '\\"')
     delegation = 'True' if agent['allow_delegation'] == 'True' else 'False'
     return (f'{role_var} = Agent(\n'
@@ -74,7 +77,7 @@ def define_agent(agent, search_tool):
 
 # Define a task for the CrewAI script
 def define_task(agent):
-    role_var = agent['role'].replace(' ', '_').replace('-', '_')
+    role_var = agent['role'].replace(' ', '_').replace('-', '_').replace('.', '_')
     return (f'task_{role_var} = Task(\n'
             f'    description="{agent["assigned_task"].strip()}",\n'
             f'    agent={role_var},\n'
@@ -82,10 +85,10 @@ def define_task(agent):
             ')\n\n')
 
 # Write the CrewAI script based on the agent and task data
-def write_crewai_script(agents_data, crew_tasks, file_path, ollama_openhermes, search_tool):
-    crew_agents = ', '.join([agent['role'].replace(' ', '_').replace('-', '_') for agent in agents_data])
+def write_crewai_script(agents_data, crew_tasks, file_name, ollama_openhermes, search_tool):
+    crew_agents = ', '.join([agent['role'].replace(' ', '_').replace('-', '_').replace('.', '_') for agent in agents_data])
 
-    with open(file_path, 'w') as file:
+    with open(file_name, 'w') as file:
         # Writing imports and initializations
         file.write(
             'import os\n'
@@ -100,9 +103,11 @@ def write_crewai_script(agents_data, crew_tasks, file_path, ollama_openhermes, s
 
         for agent in agents_data:
             file.write(define_agent(agent, search_tool))
+            file.write('\n')
 
         for agent in agents_data:
             file.write(define_task(agent))
+            file.write('\n')
 
         file.write(
             'crew = Crew(\n'
@@ -118,9 +123,17 @@ def write_crewai_script(agents_data, crew_tasks, file_path, ollama_openhermes, s
 
 # Main function
 def main():
+    parser = argparse.ArgumentParser(description='CrewAI Autocrew Script')
+    parser.add_argument('overall_goal', nargs='?', type=str, help='The overall goal for the crew')
+    parser.add_argument('-a', '--autorun', action='store_true', help='Run the generated script automatically at the end')
+    args = parser.parse_args()
+
+    overall_goal = args.overall_goal
+    if not overall_goal:
+        overall_goal = input('Please specify the overall goal: ')
+
     try:
         ollama = initialize_ollama()
-        overall_goal = input('Please specify the overall goal: ')
         delimiter = ','
         response = get_agent_data(ollama, overall_goal, delimiter)
         if not response:
@@ -133,14 +146,19 @@ def main():
             raise ValueError('No agent data parsed')
 
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-        file_name = f'crewai-autocrew-{timestamp}-{overall_goal.replace(" ", "-")}.py'
-        file_path = os.path.join(os.getcwd(), file_name)
+        overall_goal_filename = overall_goal.replace(' ', '-')
+        file_name = f'crewai-autocrew-{timestamp}-{overall_goal_filename}.py'
+        crewai_script_path = os.path.join(os.getcwd(), file_name)
 
-        crew_tasks = ', '.join([f'task_{agent["role"].replace(" ", "_").replace("-", "_")}' for agent in agents_data])
+        crew_tasks = ', '.join([f'task_{agent["role"].replace(" ", "_").replace("-", "_").replace(".", "_")}' for agent in agents_data])
 
-        write_crewai_script(agents_data, crew_tasks, file_path, ollama, DuckDuckGoSearchRun())
+        write_crewai_script(agents_data, crew_tasks, crewai_script_path, ollama, DuckDuckGoSearchRun())
 
-        print(f'\nScript written to {file_path}')
+        print(f'\nScript written to {crewai_script_path}')
+
+        if args.autorun:
+            print('\nRunning the generated CrewAI script...')
+            os.system(f'python3 {crewai_script_path}')
 
     except Exception as e:
         print(f'Error: {e}')
