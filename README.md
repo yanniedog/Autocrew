@@ -1,4 +1,4 @@
-# CrewAI Autocrew Script
+# Autocrew for CrewAI
 
 This script automates the process of creating a CrewAI team with agents, tasks, and tools, using the Ollama language model to generate the required data in CSV format. The script then parses the CSV data, defines agents and tasks, and writes a CrewAI script that can be executed to run the generated team.
 
