@@ -27,8 +27,8 @@ def get_agent_data(ollama, overall_goal, delimiter):
 
 # Save Ollama's CSV output to a file
 def save_csv_output(response, overall_goal):
-    timestamp = datetime.now().strftime("%Y%m%d-%H%M")
-    file_name = f'ollama-csv-{timestamp}-{overall_goal}.csv'
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    file_name = f'ollama-csv-{timestamp}-{overall_goal.replace(" ", "-")}.csv'
     with open(file_name, 'w') as file:
         file.write(response)
     print(f'Ollama\'s CSV output saved as {file_name}')
@@ -76,15 +76,14 @@ def define_agent(agent, search_tool):
 def define_task(agent):
     role_var = agent['role'].replace(' ', '_').replace('-', '_')
     return (f'task_{role_var} = Task(\n'
-            f'    description="{agent["assigned_task"]}",\n'
+            f'    description="{agent["assigned_task"].strip()}",\n'
             f'    agent={role_var},\n'
             '    verbose=True,\n'
             ')\n\n')
 
 # Write the CrewAI script based on the agent and task data
-def write_crewai_script(agents_data, file_path, ollama_openhermes, search_tool):
+def write_crewai_script(agents_data, crew_tasks, file_path, ollama_openhermes, search_tool):
     crew_agents = ', '.join([agent['role'].replace(' ', '_').replace('-', '_') for agent in agents_data])
-    crew_tasks = ', '.join([f'task_{agent["role"].replace(" ", "_").replace("-", "_")}' for agent in agents_data])
 
     with open(file_path, 'w') as file:
         # Writing imports and initializations
@@ -117,8 +116,6 @@ def write_crewai_script(agents_data, file_path, ollama_openhermes, search_tool):
             '# Handle the "result" as needed\n'
         )
 
-    return crew_tasks
-
 # Main function
 def main():
     try:
@@ -135,11 +132,15 @@ def main():
         if not agents_data:
             raise ValueError('No agent data parsed')
 
-        file_path = os.path.join(os.getcwd(), 'crewai-script.py')
-        crew_tasks = write_crewai_script(agents_data, file_path, ollama, DuckDuckGoSearchRun())
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        file_name = f'crewai-autocrew-script-{timestamp}-{overall_goal.replace(" ", "-")}.py'
+        file_path = os.path.join(os.getcwd(), file_name)
+
+        crew_tasks = ', '.join([f'task_{agent["role"].replace(" ", "_").replace("-", "_")}' for agent in agents_data])
+
+        write_crewai_script(agents_data, crew_tasks, file_path, ollama, DuckDuckGoSearchRun())
 
         print(f'\nScript written to {file_path}')
-        print(f'Crew tasks: {crew_tasks}')
 
     except Exception as e:
         print(f'Error: {e}')
