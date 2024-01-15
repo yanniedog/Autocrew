@@ -21,7 +21,7 @@ def get_agent_data(ollama, overall_goal, delimiter):
     response = ollama.invoke(instruction.format(overall_goal=overall_goal, delimiter=delimiter))
     print("Ollama's CSV Output:")
     print(response)
-    return response
+    return response.replace(delimiter, ",")
 
 # Parse CSV data from Ollama's response
 def parse_csv_data(response, delimiter=','):
@@ -105,7 +105,7 @@ def main():
     try:
         ollama = initialize_ollama()
         overall_goal = input("Please specify the overall goal: ")
-        delimiter = input("Please specify the delimiter used in the CSV data: ")
+        delimiter = "|"
         response = get_agent_data(ollama, overall_goal, delimiter)
         if not response:
             raise ValueError("No response from Ollama")
