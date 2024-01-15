@@ -14,7 +14,7 @@ def initialize_ollama(model='openhermes'):
 
 # Get agent data from Ollama
 def get_agent_data(ollama, overall_goal, delimiter):
-    print("Sending request to LLM...")
+    print("Autocrew: Sending request to LLM...")
     instruction = (
         f'Create a dataset in a CSV format with each field enclosed in double quotes, for a team of agents with the goal: "{overall_goal}". '
         f'Use the delimiter "{delimiter}" to separate the fields. '
@@ -157,7 +157,7 @@ def main():
         print(f'\nScript written to {crewai_script_path}')
 
         if args.autorun:
-            print('\nRunning the generated CrewAI script...')
+            print('\nAutocrew: Running the generated CrewAI script...')
             os.system(f'python3 {crewai_script_path}')
 
     except Exception as e:
