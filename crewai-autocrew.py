@@ -13,7 +13,7 @@ from langchain_community.tools import DuckDuckGoSearchRun
 from packaging import version
 
 # Autocrew version
-autocrew_version = "1.1"
+autocrew_version = "1.1.1"
 
 
 def initialize_ollama(model='openhermes'):
