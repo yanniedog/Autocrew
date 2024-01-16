@@ -8,6 +8,9 @@ from langchain_community.llms import Ollama
 from langchain_community.tools import DuckDuckGoSearchRun
 from crewai import Agent, Task, Crew, Process
 
+# Autocrew version
+autocrew_version = "1.0.1"
+
 # Initialize Ollama
 def initialize_ollama(model='openhermes'):
     return Ollama(model=model, verbose=True)
@@ -123,6 +126,10 @@ def write_crewai_script(agents_data, crew_tasks, file_name, ollama_openhermes, s
 
 # Main function
 def main():
+    print()
+    print(f"Autocrew (v{autocrew_version}) for CrewAI ")
+    print("\nTo see the available command line parameters, type: python crewai-autocrew.py -h")
+    print()
     parser = argparse.ArgumentParser(description='CrewAI Autocrew Script')
     parser.add_argument('overall_goal', nargs='?', type=str, help='The overall goal for the crew')
     parser.add_argument('-a', '--autorun', action='store_true', help='Run the generated script automatically at the end')
@@ -130,7 +137,7 @@ def main():
 
     overall_goal = args.overall_goal
     if not overall_goal:
-        overall_goal = input('Please specify the overall goal: ')
+        overall_goal = input('\033[1mPlease specify the overall goal:\033[0m ')
 
     try:
         ollama = initialize_ollama()
