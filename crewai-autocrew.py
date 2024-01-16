@@ -30,7 +30,7 @@ def get_agent_data(ollama, overall_goal, delimiter):
 # Save Ollama's CSV output to a file
 def save_csv_output(response, overall_goal):
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    file_name = f'crewai-autocrew-{timestamp}-{overall_goal.replace(" ", "-")}.csv'
+    file_name = f'crewai-autocrew-{timestamp}-{overall_goal[:40].replace(" ", "-")}.csv'
     file_path = os.path.join(os.getcwd(), file_name)
     with open(file_path, 'w') as file:
         file.write(response)
@@ -146,7 +146,7 @@ def main():
             raise ValueError('No agent data parsed')
 
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-        overall_goal_filename = overall_goal.replace(' ', '-')
+        overall_goal_filename = overall_goal[:50].replace(' ', '-')
         file_name = f'crewai-autocrew-{timestamp}-{overall_goal_filename}.py'
         crewai_script_path = os.path.join(os.getcwd(), file_name)
 
