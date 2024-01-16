@@ -10,7 +10,7 @@ from langchain_community.tools import DuckDuckGoSearchRun
 from crewai import Agent, Task, Crew, Process
 
 # Autocrew version
-autocrew_version = "1.0.2"
+autocrew_version = "1.0.3"
 
 # Initialize Ollama
 def initialize_ollama(model='openhermes'):
@@ -32,9 +32,9 @@ def get_agent_data(ollama, overall_goal, delimiter):
     return response
 
 # Save Ollama's CSV output to a file
-def save_csv_output(response, overall_goal):
+def save_csv_output(response, overall_goal, index):
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    file_name = f'crewai-autocrew-{timestamp}-{overall_goal[:40].replace(" ", "-")}.csv'
+    file_name = f'crewai-autocrew-{timestamp}-{overall_goal[:40].replace(" ", "-")}-{index}.csv'
     file_path = os.path.join(os.getcwd(), file_name)
     with open(file_path, 'w') as file:
         file.write(response)
@@ -142,7 +142,7 @@ def check_latest_version():
 def main():
     print()
     print(f"Autocrew (v{autocrew_version}) for CrewAI ")
-    
+
     latest_version = check_latest_version()
     if latest_version and latest_version != autocrew_version:
         print(f'\n\033[1mNew version available: {latest_version}\033[0m')
@@ -152,39 +152,45 @@ def main():
     parser = argparse.ArgumentParser(description='CrewAI Autocrew Script')
     parser.add_argument('overall_goal', nargs='?', type=str, help='The overall goal for the crew')
     parser.add_argument('-a', '--autorun', action='store_true', help='Run the generated script automatically at the end')
+    parser.add_argument('-m', '--multiple', action='store_true', help='Create multiple CrewAI scripts for the same overall goal')
     args = parser.parse_args()
 
     overall_goal = args.overall_goal
     if not overall_goal:
         overall_goal = input('\033[1mPlease specify the overall goal:\033[0m ')
 
+    num_scripts = 1
+    if args.multiple:
+        num_scripts = int(input('\033[1mPlease enter the number of different CrewAI scripts to create:\033[0m '))
+
     try:
         ollama = initialize_ollama()
         delimiter = ','
-        response = get_agent_data(ollama, overall_goal, delimiter)
-        if not response:
-            raise ValueError('No response from Ollama')
+        for i in range(num_scripts):
+            response = get_agent_data(ollama, overall_goal, delimiter)
+            if not response:
+                raise ValueError('No response from Ollama')
 
-        save_csv_output(response, overall_goal)
+            save_csv_output(response, overall_goal, i+1)
 
-        agents_data = parse_csv_data(response, delimiter)
-        if not agents_data:
-            raise ValueError('No agent data parsed')
+            agents_data = parse_csv_data(response, delimiter)
+            if not agents_data:
+                raise ValueError('No agent data parsed')
 
-        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-        overall_goal_filename = overall_goal[:50].replace(' ', '-')
-        file_name = f'crewai-autocrew-{timestamp}-{overall_goal_filename}.py'
-        crewai_script_path = os.path.join(os.getcwd(), file_name)
+            timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+            overall_goal_filename = overall_goal[:50].replace(' ', '-')
+            file_name = f'crewai-autocrew-{timestamp}-{overall_goal_filename}-{i+1}.py'
+            crewai_script_path = os.path.join(os.getcwd(), file_name)
 
-        crew_tasks = ', '.join([f'task_{agent["role"].replace(" ", "_").replace("-", "_").replace(".", "_")}' for agent in agents_data])
+            crew_tasks = ', '.join([f'task_{agent["role"].replace(" ", "_").replace("-", "_").replace(".", "_")}' for agent in agents_data])
 
-        write_crewai_script(agents_data, crew_tasks, crewai_script_path, ollama, DuckDuckGoSearchRun())
+            write_crewai_script(agents_data, crew_tasks, crewai_script_path, ollama, DuckDuckGoSearchRun())
 
-        print(f'\nScript written to {crewai_script_path}')
+            print(f'\nScript {i+1} written to {crewai_script_path}')
 
-        if args.autorun:
-            print('\nAutocrew: Running the generated CrewAI script...')
-            os.system(f'python3 {crewai_script_path}')
+            if args.autorun:
+                print('\nAutocrew: Running the generated CrewAI script...')
+                os.system(f'python3 {crewai_script_path}')
 
     except Exception as e:
         print(f'Error: {e}')
