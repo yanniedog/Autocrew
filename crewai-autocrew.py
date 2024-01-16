@@ -4,12 +4,13 @@ import os
 import traceback
 from datetime import datetime
 import argparse
+import requests
 from langchain_community.llms import Ollama
 from langchain_community.tools import DuckDuckGoSearchRun
 from crewai import Agent, Task, Crew, Process
 
 # Autocrew version
-autocrew_version = "1.0.1"
+autocrew_version = "1.0.2"
 
 # Initialize Ollama
 def initialize_ollama(model='openhermes'):
@@ -124,10 +125,28 @@ def write_crewai_script(agents_data, crew_tasks, file_name, ollama_openhermes, s
             '# Handle the "result" as needed\n'
         )
 
+# Check the latest version of the script on GitHub
+def check_latest_version():
+    try:
+        response = requests.get('https://raw.githubusercontent.com/yanniedog/crewai-autocrew/main/crewai-autocrew.py')
+        response.raise_for_status()
+        script_content = response.text
+        version_line = next(line for line in script_content.split('\n') if line.startswith('autocrew_version = '))
+        latest_version = version_line.split('=')[1].strip().strip('"')
+        return latest_version
+    except Exception as e:
+        print(f'Error checking the latest version: {e}')
+        return None
+
 # Main function
 def main():
     print()
     print(f"Autocrew (v{autocrew_version}) for CrewAI ")
+    
+    latest_version = check_latest_version()
+    if latest_version and latest_version != autocrew_version:
+        print(f'\n\033[1mNew version available: {latest_version}\033[0m')
+
     print("\nTo see the available command line parameters, type: python crewai-autocrew.py -h")
     print()
     parser = argparse.ArgumentParser(description='CrewAI Autocrew Script')
