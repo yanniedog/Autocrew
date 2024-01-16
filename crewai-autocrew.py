@@ -227,7 +227,7 @@ def main():
     if latest_version and latest_version != autocrew_version:
         print(f'\n\033[1mNew version available: {latest_version}\033[0m')
 
-    print("\nTo see the available command line parameters, type: python crewai-autocrew.py -h")
+    print("\nTo see the available command line parameters, type: python3 crewai-autocrew.py -h")
     print()
     parser = argparse.ArgumentParser(description='CrewAI Autocrew Script')
     parser.add_argument('overall_goal', nargs='?', type=str, help='The overall goal for the crew')
