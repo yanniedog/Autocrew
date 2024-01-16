@@ -5,12 +5,13 @@ import traceback
 from datetime import datetime
 import argparse
 import requests
+from packaging import version
 from langchain_community.llms import Ollama
 from langchain_community.tools import DuckDuckGoSearchRun
 from crewai import Agent, Task, Crew, Process
 
 # Autocrew version
-autocrew_version = "1.0.3"
+autocrew_version = "1.0.4"
 
 # Initialize Ollama
 def initialize_ollama(model='openhermes'):
@@ -133,7 +134,12 @@ def check_latest_version():
         script_content = response.text
         version_line = next(line for line in script_content.split('\n') if line.startswith('autocrew_version = '))
         latest_version = version_line.split('=')[1].strip().strip('"')
-        return latest_version
+
+        if version.parse(latest_version) > version.parse(autocrew_version):
+            return latest_version
+        else:
+            return None
+
     except Exception as e:
         print(f'Error checking the latest version: {e}')
         return None
@@ -151,17 +157,19 @@ def main():
     print()
     parser = argparse.ArgumentParser(description='CrewAI Autocrew Script')
     parser.add_argument('overall_goal', nargs='?', type=str, help='The overall goal for the crew')
-    parser.add_argument('-a', '--autorun', action='store_true', help='Run the generated script automatically at the end')
-    parser.add_argument('-m', '--multiple', action='store_true', help='Create multiple CrewAI scripts for the same overall goal')
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument('-a', '--autorun', action='store_true', help='Run the generated script automatically at the end')
+    group.add_argument('-m', '--multiple', type=int, metavar='NUM_SCRIPTS', help='Create multiple CrewAI scripts for the same overall goal')
     args = parser.parse_args()
+
+    if args.autorun and args.multiple:
+        parser.error("The options -a/--autorun and -m/--multiple cannot be used together. Please choose one or the other.")
 
     overall_goal = args.overall_goal
     if not overall_goal:
         overall_goal = input('\033[1mPlease specify the overall goal:\033[0m ')
 
-    num_scripts = 1
-    if args.multiple:
-        num_scripts = int(input('\033[1mPlease enter the number of different CrewAI scripts to create:\033[0m '))
+    num_scripts = args.multiple or 1
 
     try:
         ollama = initialize_ollama()
