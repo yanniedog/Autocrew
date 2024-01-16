@@ -11,7 +11,7 @@ from langchain_community.tools import DuckDuckGoSearchRun
 from crewai import Agent, Task, Crew, Process
 
 # Autocrew version
-autocrew_version = "1.0.4.9"
+autocrew_version = "1.0.4"
 
 # Initialize Ollama
 def initialize_ollama(model='openhermes'):
@@ -74,7 +74,7 @@ def define_agent(agent, search_tool):
             '    verbose=True,\n'
             f'    allow_delegation={delegation},\n'
             '    llm=ollama_openhermes,\n'
-            '    tools=[search_tool]\n'
+            f'    tools=[{search_tool}]\n'
             ')\n\n')
 
 # Define a task for the CrewAI script
@@ -103,7 +103,7 @@ def write_crewai_script(agents_data, crew_tasks, file_name):
         )
 
         for agent in agents_data:
-            file.write(define_agent(agent, search_tool))
+            file.write(define_agent(agent, "search_tool"))
             file.write('\n')
 
         for agent in agents_data:
@@ -208,6 +208,7 @@ def main():
     parser = argparse.ArgumentParser(description='CrewAI Autocrew Script')
     parser.add_argument('overall_goal', nargs='?', type=str, help='The overall goal for the crew')
     parser.add_argument('-r', '--ranking', action='store_true', help='Perform ranking only based on existing CSV files')
+    parser.add_argument('-m', '--multiple', action='store_true', help='Create multiple CrewAI scripts for the same overall goal')
     args = parser.parse_args()
 
     if args.ranking:
@@ -251,6 +252,8 @@ def main():
         overall_goal = args.overall_goal
 
     num_scripts = 1
+    if args.multiple:
+        num_scripts = int(input('\033[1mPlease enter the number of different CrewAI scripts to create:\033[0m '))
 
     try:
         delimiter = ','
