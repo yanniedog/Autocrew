@@ -94,6 +94,3 @@ Regular updates are made to this script. Check the [Releases](https://github.com
 **Disclaimer**: This script is updated regularly. Ensure you're using the latest version for optimal functionality.
 
 ---
-```
-
-Please make sure to add the correct link to the CrewAI GitHub repository and any other specific links you wish to include in the README.
