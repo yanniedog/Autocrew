@@ -1,76 +1,42 @@
-# Autocrew for CrewAI
+# CrewAI AutoCrew Script
 
-This script automates the process of creating a CrewAI team with agents, tasks, and tools, using the Ollama language model to generate the required data in CSV format. The script then parses the CSV data, defines agents and tasks, and writes a CrewAI script that can be executed to run the generated team.
+This repository contains the CrewAI AutoCrew Script, a Python tool designed for automating the creation and evaluation of virtual agent teams within the CrewAI framework, integrating with Ollama for enhanced decision-making.
 
 ## Features
 
-- Initialize Ollama with a specified model (default is 'openhermes').
-- Get agent data from Ollama as a CSV response.
-- Save the CSV output to a file.
-- Parse the CSV data and extract agent information.
-- Define agents and tasks for the CrewAI script.
-- Write the CrewAI script based on the agent and task data.
-- Option to run the generated CrewAI script automatically.
-
-## Requirements
-
-- Python 3.6 or higher
-- `langchain_community` package
-- `crewai` package
+- **Agent Team Creation**: Automates the generation of agent teams, specifying roles and tasks aligned with overarching goals.
+- **Integration with Ollama and CrewAI**: Utilizes Ollama for AI-driven decisions and CrewAI for effective agent management.
+- **CSV Data Management**: Supports handling of agent data in CSV format, facilitating data processing and analysis.
+- **Multiple Script Generation**: Allows for the creation of various scripts tailored to different objectives.
+- **Team Ranking Functionality**: Evaluates and ranks agent teams based on effectiveness and goal alignment.
 
 ## Installation
 
-1. Clone the repository:
-
-   ```
-   git clone https://github.com/yanniedog/crewai-autocrew.git
-   ```
-
-2. Change to the project directory:
-
-   ```
-   cd crewai-autocrew
-   ```
-
-3. Install the required packages:
-
-   ```
-   pip install langchain_community crewai
-   ```
+Ensure Python 3.x is installed along with necessary dependencies like CrewAI, Ollama, and others. An OpenAI API key is required for Ollama interactions.
 
 ## Usage
 
-1. Run the script with the overall goal as an argument:
+Execute the script in a terminal:
 
-   ```
-   python autocrew.py "Find the best pizza restaurants in New York"
-   ```
+```bash
+python3 crewai-autocrew.py "[overall_goal]" [options]
+```
 
-   Alternatively, you can run the script without an argument and provide the overall goal when prompted:
+### Options
 
-   ```
-   python autocrew.py
-   ```
-
-2. The script will generate a CSV file with agent data and a CrewAI script based on the parsed agent data.
-
-3. To run the generated CrewAI script automatically, use the `-a` or `--autorun` option:
-
-   ```
-   python autocrew.py -a "Find the best pizza restaurants in New York"
-   ```
-
-## Customization
-
-You can modify the script to use different models, tools, or processes for the CrewAI team. Simply update the relevant parts of the code to reflect your desired configuration.
+- `overall_goal`: Define the main objective for the agent crew.
+- `-a`, `--auto_run`: Option to automatically run a single generated script.
+- `-m`, `--multiple NUM`: Create multiple scripts for a single goal.
+- `-r`, `--ranking`: Rank agent teams based on provided CSV data.
 
 ## Contributing
 
-1. Fork the repository on GitHub.
-2. Create a new branch for your changes.
-3. Commit your changes and push them to your fork.
-4. Create a pull request with a description of your changes.
+Contributions are welcome. Please fork the repository and submit pull requests for any enhancements.
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+**Disclaimer**: Regular updates are made to this script. Ensure you have the latest version for optimal functionality.
