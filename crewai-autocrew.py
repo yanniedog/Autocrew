@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 import csv
 import io
 import os
@@ -18,6 +19,30 @@ def initialize_ollama(model='openhermes'):
     return Ollama(model=model, verbose=True)
 
 # Get agent data from Ollama
+=======
+import argparse
+import csv
+import io
+import os
+import sys
+import traceback
+from datetime import datetime
+
+import requests
+from crewai import Agent, Crew, Process, Task
+from langchain_community.llms import Ollama
+from langchain_community.tools import DuckDuckGoSearchRun
+from packaging import version
+
+# Autocrew version
+autocrew_version = "1.1.1"
+
+
+def initialize_ollama(model='openhermes'):
+    return Ollama(model=model, verbose=True)
+
+
+>>>>>>> Stashed changes
 def get_agent_data(ollama, overall_goal, delimiter):
     instruction = (
         f'Create a dataset in a CSV format with each field enclosed in double quotes, for a team of agents with the goal: "{overall_goal}". '
@@ -29,7 +54,11 @@ def get_agent_data(ollama, overall_goal, delimiter):
     response = ollama.invoke(instruction.format(overall_goal=overall_goal, delimiter=delimiter))
     return response
 
+<<<<<<< Updated upstream
 # Save Ollama's CSV output to a file
+=======
+
+>>>>>>> Stashed changes
 def save_csv_output(response, overall_goal, index):
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     file_name = f'crewai-autocrew-{timestamp}-{overall_goal[:40].replace(" ", "-")}-{index}.csv'
@@ -38,7 +67,11 @@ def save_csv_output(response, overall_goal, index):
         file.write(response)
     return file_path
 
+<<<<<<< Updated upstream
 # Parse CSV data from Ollama's response
+=======
+
+>>>>>>> Stashed changes
 def parse_csv_data(response, delimiter=',', filename=''):
     header = ['filename', 'role', 'goal', 'backstory', 'assigned_task', 'allow_delegation']
     agents_data = []
@@ -62,6 +95,7 @@ def parse_csv_data(response, delimiter=',', filename=''):
         agents_data.append(agent_data)
     return agents_data
 
+<<<<<<< Updated upstream
 # Define an agent for the CrewAI script
 def define_agent(agent, search_tool):
     role_var = agent['role'].replace(' ', '_').replace('-', '_').replace('.', '_')
@@ -90,6 +124,48 @@ def define_task(agent):
 def write_crewai_script(agents_data, crew_tasks, file_name):
     crew_agents = ', '.join([agent['role'].replace(' ', '_').replace('-', '_').replace('.', '_') for agent in agents_data])
 
+=======
+
+def define_agent(agent, search_tool):
+    role_var = agent['role'].replace(' ', '_').replace('-', '_').replace('.', '_')
+    role_value = agent['role'].replace('"', '\\"').replace("'", "\\'")
+    backstory = agent['backstory'].replace('"', '\\"').replace("'", "\\'")
+    delegation = 'True' if agent['allow_delegation'] == 'True' else 'False'
+    return (
+        f'{role_var} = Agent(\n'
+        f'    role="{role_value}",\n'
+        f'    goal="{agent["goal"]}",\n'
+        f'    backstory="{backstory}",\n'
+        f'    verbose=True,\n'
+        f'    allow_delegation={delegation},\n'
+        f'    llm=ollama_openhermes,\n'
+        f'    tools=[{search_tool}]\n'
+        ')\n\n'
+    )
+
+
+def get_task_var_name(role):
+    return f'task_{role.replace(" ", "_").replace("-", "_").replace(".", "_")}'
+
+
+def define_task(agent):
+    task_var = get_task_var_name(agent['role'])
+
+    # Escape double quotes in assigned_task if needed
+    task_description = agent["assigned_task"].strip().replace('"', '\\"')
+
+    return (
+        f'{task_var} = Task(\n'
+        f' description="{task_description}",\n'
+        f' agent={agent["role"].replace(" ", "_").replace("-", "_").replace(".", "_")},\n'
+        ' verbose=True,\n'
+        ')\n\n'
+    )
+
+
+def write_crewai_script(agents_data, crew_tasks, file_name):
+    crew_agents = ', '.join([agent['role'].replace(' ', '_').replace('-', '_').replace('.', '_') for agent in agents_data])
+>>>>>>> Stashed changes
     with open(file_name, 'w') as file:
         file.write(
             'import os\n'
@@ -122,7 +198,11 @@ def write_crewai_script(agents_data, crew_tasks, file_name):
             '# Handle the "result" as needed\n'
         )
 
+<<<<<<< Updated upstream
 # Check the latest version of the script on GitHub
+=======
+
+>>>>>>> Stashed changes
 def check_latest_version():
     try:
         response = requests.get('https://raw.githubusercontent.com/yanniedog/crewai-autocrew/main/crewai-autocrew.py')
@@ -140,8 +220,13 @@ def check_latest_version():
         print(f'Error checking the latest version: {e}')
         return None
 
+<<<<<<< Updated upstream
 # Rank the crews based on their likelihood of success
 def rank_crews(csv_file_paths):
+=======
+
+def rank_crews(csv_file_paths, overall_goal):
+>>>>>>> Stashed changes
     ranked_crews = []
     overall_summary = ""
 
@@ -172,7 +257,21 @@ def rank_crews(csv_file_paths):
     print('\nConcatenated CSV Data:')
     print(concatenated_csv_data)
 
+<<<<<<< Updated upstream
     ranked_crew = ollama.invoke(concatenated_csv_data)
+=======
+    # Updated prompt for Ollama
+    prompt = (
+        f'From a list of crews, you need to provide identify which crew is most likely to successfully complete the task: {overall_goal}. '
+        f'Each crew contains agents and tasks. The list of all agents is here: {concatenated_csv_data}. '
+        f'In this list, the information in the filename column is the crew name. '
+        f'I want you to return a CSV with the following columns: crewname, rank, explanation, recommendation. '
+        f'In rank, assign 1 to your preferred crew. In explanation, explain why you assigned this rank to this particular crew. '
+        f'In recommendation, outline changes that would further improve the performance of this crew.'
+    )
+
+    ranked_crew = ollama.invoke(prompt)
+>>>>>>> Stashed changes
     print('\nOllama Ranking:')
     print(ranked_crew)
 
@@ -194,7 +293,11 @@ def rank_crews(csv_file_paths):
 
     return ranked_crews, overall_summary
 
+<<<<<<< Updated upstream
 # Main function
+=======
+
+>>>>>>> Stashed changes
 def main():
     print()
     print(f"Autocrew (v{autocrew_version}) for CrewAI ")
@@ -203,6 +306,7 @@ def main():
     if latest_version and latest_version != autocrew_version:
         print(f'\n\033[1mNew version available: {latest_version}\033[0m')
 
+<<<<<<< Updated upstream
     print("\nTo see the available command line parameters, type: python crewai-autocrew.py -h")
     print()
     parser = argparse.ArgumentParser(description='CrewAI Autocrew Script')
@@ -240,6 +344,36 @@ def main():
             ollama = initialize_ollama()
             ollama.invoke(overall_summary)
 
+=======
+    print("\nTo see the available command line parameters, type: python3 crewai-autocrew.py -h")
+    print()
+    parser = argparse.ArgumentParser(description='CrewAI Autocrew Script')
+    parser.add_argument('overall_goal', nargs='?', type=str, help='The overall goal for the crew')
+    parser.add_argument('-a', '--auto_run', action='store_true', help='Automatically run the generated script')
+    parser.add_argument('-m', '--multiple', type=int, metavar='NUM', help='Create NUM number of CrewAI scripts for the same overall goal. Example: -m 3')
+    parser.add_argument('-r', '--ranking', action='store_true', help='Perform ranking only based on existing CSV files --> currently EXPERIMENTAL')
+ 
+
+    args = parser.parse_args()
+
+    if args.multiple and args.auto_run:
+        raise ValueError("The -m and -a command line parameters must not be used simultaneously")
+
+    if args.ranking:
+        if args.overall_goal: 
+            overall_goal = args.overall_goal
+        else:
+            overall_goal = input('Please specify the overall goal: ')
+
+        csv_file_paths = [file for file in os.listdir() if file.startswith(f'crewai-autocrew-') and file.endswith('.csv') and overall_goal in file]
+        if not csv_file_paths:
+            print(f'No CSV files found for the provided overall goal: {overall_goal}')
+            return
+
+        try:
+            ranked_crews, overall_summary = rank_crews(csv_file_paths, overall_goal)
+            # ... [Rest of the code for processing the ranking] ...
+>>>>>>> Stashed changes
         except Exception as e:
             print(f'Error: {e}')
             traceback.print_exc()
@@ -251,9 +385,16 @@ def main():
     else:
         overall_goal = args.overall_goal
 
+<<<<<<< Updated upstream
     num_scripts = 1
     if args.multiple:
         num_scripts = int(input('\033[1mPlease enter the number of different CrewAI scripts to create:\033[0m '))
+=======
+    if args.multiple:
+        num_scripts = args.multiple
+    else:
+        num_scripts = 1
+>>>>>>> Stashed changes
 
     try:
         delimiter = ','
@@ -283,8 +424,17 @@ def main():
 
             csv_file_paths.append(file_path)  # Add the CSV file path to the list
 
+<<<<<<< Updated upstream
         if num_scripts > 1:
             ranked_crews, overall_summary = rank_crews(csv_file_paths)
+=======
+            if args.auto_run:
+                print(f'\nRunning script {i+1}...')
+                os.system(f'python3 {crewai_script_path}')
+
+        if num_scripts > 1:
+            ranked_crews, overall_summary = rank_crews(csv_file_paths, overall_goal)
+>>>>>>> Stashed changes
 
             timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
             overall_goal_filename = overall_goal[:50].replace(' ', '-')
@@ -309,5 +459,11 @@ def main():
         print(f'Error: {e}')
         traceback.print_exc()
 
+<<<<<<< Updated upstream
 if __name__ == '__main__':
     main()
+=======
+
+if __name__ == '__main__':
+    main()
+>>>>>>> Stashed changes
