@@ -19,15 +19,49 @@ Ensure Python 3.x is installed along with necessary dependencies like CrewAI, Ol
 Execute the script in a terminal:
 
 ```bash
-python3 crewai-autocrew.py "[overall_goal]" [options]
+python3 crewai-autocrew.py [overall_goal] [options]
 ```
 
 ### Options
 
 - `overall_goal`: Define the main objective for the agent crew.
-- `-a`, `--auto_run`: Option to automatically run a single generated script.
+- `-a`, `--auto_run`: Option to automatically run the generated script.
 - `-m`, `--multiple NUM`: Create multiple scripts for a single goal.
 - `-r`, `--ranking`: Rank agent teams based on provided CSV data.
+
+## Example Usage
+
+### Basic Command
+
+```bash
+python3 crewai-autocrew.py "Space Exploration"
+```
+
+This command generates a script for a crew with the goal of space exploration.
+
+### Creating Multiple Scripts
+
+```bash
+python3 crewai-autocrew.py "Urban Development" -m 3
+```
+
+Generates three different scripts for the goal of urban development.
+
+### Automatic Execution
+
+```bash
+python3 crewai-autocrew.py "Deep Sea Research" -a
+```
+
+Automatically runs the generated script for the goal of deep sea research.
+
+### Ranking Existing Crews
+
+```bash
+python3 crewai-autocrew.py "Environmental Cleanup" -r
+```
+
+Ranks existing crews based on the goal of environmental cleanup.
 
 ## Contributing
 
