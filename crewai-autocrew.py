@@ -11,13 +11,15 @@ from crewai import Agent, Crew, Process, Task
 from langchain_community.llms import Ollama
 from langchain_community.tools import DuckDuckGoSearchRun
 from packaging import version
+from langchain.callbacks.manager import CallbackManager
+from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 
 # Autocrew version
 autocrew_version = "1.1.1"
 
 
 def initialize_ollama(model='openhermes'):
-    return Ollama(model=model, verbose=True)
+    return Ollama(model=model, verbose=True, callback_manager=CallbackManager([StreamingStdOutCallbackHandler()]))
 
 
 def get_agent_data(ollama, overall_goal, delimiter):
