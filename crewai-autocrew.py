@@ -223,8 +223,7 @@ def check_latest_version():
         return None
 
 
-def rank_crews(ollama, csv_file_paths, overall_goal, verbose=False):
-    ranked_crews = []  # Initialize the ranked_crews list
+def ranked_crews(ollama, csv_file_paths, overall_goal, verbose=False):
     concatenated_csv_data = 'crew_name,role,goal,backstory,assigned_task,allow_delegation\n'
 
     for file_path in csv_file_paths:
@@ -288,6 +287,8 @@ def rank_crews(ollama, csv_file_paths, overall_goal, verbose=False):
 
 
 def main():
+    rank_crews = []
+    ranked_crews = []
     greek_alphabets = ["alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta", "iota", "kappa",
                        "lambda", "mu", "nu", "xi", "omicron", "pi", "rho", "sigma", "tau", "upsilon"]
     print(f"\nAutocrew (v{autocrew_version}) for CrewAI\n")
@@ -307,81 +308,65 @@ def main():
 
     args = parser.parse_args()
 
-    # Initial summary of actions based on arguments
-    print("\nInitial Summary of Actions:")
-    if args.overall_goal:
-        print(f"  - Overall goal specified: {args.overall_goal}")
-    if args.auto_run:
-        print("  - The script(s) will be automatically run after generation.")
-    if args.multiple:
-        print(f"  - Number of scripts to generate: {args.multiple}")
-    if args.ranking:
-        print("  - Ranking mode activated. Existing CSV files will be used for ranking.")
-    if args.verbose:
-        print("  - Verbose mode activated. Additional details will be provided during execution.")
-    print()
-
-    if args.ranking and not args.overall_goal:
-        print("Warning: Ranking mode requires an overall goal. Please provide an overall goal using the command line or by entering it when prompted.")
     
-    if args.overall_goal is None:
-        overall_goal = input('\nPlease specify the overall goal: \n')
+    # Check if the script is in ranking mode and an overall goal is provided
+    if args.ranking and args.overall_goal:
+        # Search for CSV files in the current working directory
+        csv_file_paths = [f for f in os.listdir(os.getcwd()) if f.endswith('.csv') and args.overall_goal in f]
+
+        if not csv_file_paths:
+            print(f"No CSV files found for the overall goal: {args.overall_goal}")
+        else:
+            print(f"Found the following CSV files for the overall goal: {args.overall_goal}")
+            for csv_file_path in csv_file_paths:
+                print(csv_file_path)
     else:
-        overall_goal = args.overall_goal
+        # Initial summary of actions based on arguments
+        print("\nInitial Summary of Actions:")
+        if args.overall_goal:
+            print(f"  - Overall goal specified: {args.overall_goal}")
+        if args.auto_run:
+            print("  - The script(s) will be automatically run after generation.")
+        if args.multiple:
+            print(f"  - Number of scripts to generate: {args.multiple}")
+        if args.ranking:
+            print("  - Ranking mode activated. Existing CSV files will be used for ranking.")
+        if args.verbose:
+            print("  - Verbose mode activated. Additional details will be provided during execution.")
+        print()
 
-    if args.multiple:
-        num_scripts = args.multiple
-    else:
-        num_scripts = 1
+        if args.ranking and not args.overall_goal:
+            print("Warning: Ranking mode requires an overall goal. Please provide an overall goal using the command line or by entering it when prompted.")
+            overall_goal = input('\nPlease specify the overall goal: \n')
+        else:
+            overall_goal = args.overall_goal
 
-    csv_file_paths = []  # Initialize the list of CSV file paths
+        csv_file_paths = []  # Initialize the list of CSV file paths
 
-    ollama = initialize_ollama()
+        ollama = initialize_ollama()
 
-    # Generate the specified number of scripts using the -m option
-    if not args.ranking or args.multiple:
-        existing_csv_files = [f for f in os.listdir(os.getcwd()) if f.endswith('.csv') and overall_goal in f and any(greek_alpha in f for greek_alpha in greek_alphabets)]
-        existing_indices = [greek_alphabets.index(greek_alpha) for f in existing_csv_files for greek_alpha in greek_alphabets if greek_alpha in f]
-        starting_index = max(existing_indices) + 1 if existing_indices else 0
+        # Perform ranking using the -r option
+        if args.ranking:
+            print("Ranking mode activated...")
 
-        for i in range(starting_index, starting_index + num_scripts):
-            print(f"\nStarting script generation {i + 1} of {num_scripts} for the goal: '{overall_goal}'\n")
+            # Ensure an overall goal is provided
+            if not overall_goal:
+                print("Error: Overall goal is required for ranking.")
+                return
 
-            if args.verbose:
-                print("\nSending request to Ollama for agent data...\n")
-            response = get_agent_data(ollama, overall_goal, delimiter=',')
-            if not response:
-                raise ValueError('No response from Ollama')
+            print(f"Overall goal for ranking: {overall_goal}")
 
-            file_path = save_csv_output(response, overall_goal, greek_alphabets)
-            add_filename_to_csv(file_path, greek_alphabets[i % len(greek_alphabets)])  # Add the crew_name to the CSV file
-            csv_file_paths.append(file_path)  # Store the CSV file path
-            agents_data = parse_csv_data(response, delimiter=',', filename=file_path)
-            if not agents_data:
-                raise ValueError('No agent data parsed')
+            # Identify relevant CSV files
+            csv_file_paths = [f for f in os.listdir(os.getcwd()) if f.endswith('.csv') and overall_goal in f]
+            if not csv_file_paths:
+                print(f"No CSV files found for the overall goal: {overall_goal}")
+                return
 
-            file_name = os.path.basename(file_path).replace('.csv', '.py')
-            crewai_script_path = os.path.join(os.getcwd(), file_name)
-            crew_tasks = generate_crew_tasks(agents_data)
+            print(f"CSV files identified for ranking: {csv_file_paths}")
 
-            write_crewai_script(agents_data, crew_tasks, crewai_script_path)
-            print(f"\nScript {i + 1} written to {crewai_script_path}\n")
-
-            if args.auto_run:
-                print(f'\nAutomatically running script {i + 1}...\n')
-                os.system(f'python3 {crewai_script_path}')
-
-    # Perform ranking using the -r option
-    if args.ranking:
-        print("Sending ranking request to Ollama...\n")
-        # Use the CSV files generated above if multiple scripts were generated
-        if not csv_file_paths and args.overall_goal:
-            # If no new CSV files were generated, look for existing ones
-            csv_file_paths = [f for f in os.listdir(os.getcwd()) if f.endswith('.csv') and args.overall_goal in f]
-        if csv_file_paths:
+            # Proceed with ranking
             ranked_crews, overall_summary = rank_crews(ollama, csv_file_paths, overall_goal, args.verbose)
             print(overall_summary)
-
             if args.auto_run:
                 # Extract the top-ranked crew name
                 top_crew_line = overall_summary.split('\n')[0]
@@ -394,12 +379,12 @@ def main():
                         top_script_path = file_path.replace('.csv', '.py')
                         break
 
-            # Execute the top-ranked script
-            if top_script_path:
-                print(f'\nAutomatically running the top-ranked script: {top_script_path}\n')
-                os.system(f'python3 {top_script_path}')
-            else:
-                print("\nTop-ranked script not found. Please ensure the script files are in the correct directory.\n")
+                # Execute the top-ranked script
+                if top_script_path:
+                    print(f'\nAutomatically running the top-ranked script: {top_script_path}\n')
+                    os.system(f'python3 {top_script_path}')
+                else:
+                    print("\nTop-ranked script not found. Please ensure the script files are in the correct directory.\n")
 
 if __name__ == '__main__':
     main()
