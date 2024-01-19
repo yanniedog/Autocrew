@@ -18,7 +18,7 @@ from typing import Any, Dict, List
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Autocrew version
-autocrew_version = "1.2.3"
+autocrew_version = "1.2.3.1"
 
 
 def initialize_ollama(model='openhermes'):
@@ -207,7 +207,9 @@ def check_latest_version():
 
 def rank_crews(ollama, csv_file_paths, overall_goal, verbose=False):
     ranked_crews = []  # Initialize the ranked_crews list
+    overall_summary = ''  # Initialize the overall_summary variable
     concatenated_csv_data = 'crew_name,role,goal,backstory,assigned_task,allow_delegation\n'
+    
 
     for file_path in csv_file_paths:
         try:
@@ -274,7 +276,7 @@ def main():
     greek_alphabets = ["alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta", "iota", "kappa",
                        "lambda", "mu", "nu", "xi", "omicron", "pi", "rho", "sigma", "tau", "upsilon"]
     print(f"\nAutocrew (v{autocrew_version}) for CrewAI\n")
-
+    top_script_path = None  # Initialize the top_script_path variable
     latest_version = check_latest_version()
     if latest_version and latest_version != autocrew_version:
         print(f'\nNew version available: {latest_version}\n')
