@@ -19,7 +19,7 @@ from typing import Any, Dict, List
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Autocrew version
-autocrew_version = "1.2.3.3"
+autocrew_version = "1.2.3.4"
 
 
 def initialize_ollama(model='openhermes'):
@@ -386,6 +386,14 @@ def main():
                         break
 
             # Execute the top-ranked script
+            if args.verbose:
+                print(f"\nTop-ranked crew name: {top_crew_name}")
+                print("\nAvailable script files in the directory:")
+                script_files = [f for f in os.listdir(os.getcwd()) if f.endswith('.py')]
+                for script_file in script_files:
+                    print(f"  - {script_file}")
+                print(f"\nSearching for script file with overall_goal_formatted: {overall_goal_formatted} and top_crew_name: {top_crew_name}")
+
             if top_script_path:
                 print(f'\nAutomatically running the top-ranked script: {top_script_path}\n')
                 os.system(f'python3 {top_script_path}')
