@@ -27,3 +27,4 @@ test_data
 *.gguf
 ModelFile
 solar10-q5ks
+old-script.py
