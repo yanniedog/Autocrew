@@ -18,31 +18,11 @@ from typing import Any, Dict, List
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Autocrew version
-autocrew_version = "1.2.2"
+autocrew_version = "1.2.3"
 
 
 def initialize_ollama(model='openhermes'):
     return Ollama(model=model, verbose=True, callback_manager=CallbackManager([StreamingStdOutCallbackHandler()]))
-
-
-def add_filename_to_csv(file_path, crew_name):
-    modified_rows = []
-    filename = os.path.basename(file_path)
-
-    with open(file_path, 'r') as file:
-        csv_reader = csv.reader(file)
-        header = next(csv_reader)  # Read the header row
-        modified_header = header + ['file_name', 'crew_name']
-        modified_rows.append(modified_header)
-
-        for row in csv_reader:
-            modified_row = row + [f'"{filename}"', f'"{crew_name}"']
-            modified_rows.append(modified_row)
-
-    with open(file_path, 'w', newline='') as file:
-        csv_writer = csv.writer(file)
-        csv_writer.writerows(modified_rows)
-
 
 def get_agent_data(ollama, overall_goal, delimiter):
     instruction = (
@@ -88,15 +68,17 @@ def save_csv_output(response, overall_goal, greek_alphabets):
     # Write the modified response to the file
     with open(file_path, 'w') as file:
         # Write the header row
-        file.write("file_name,crew_name," + lines[0] + '\n')
+        file.write("crew_name," + lines[0] + '\n')
 
         # Modify and write the data rows
         for line in lines[1:]:
             if line.strip():
-                modified_line = f'{file_name},{crew_name},{line}\n'
+                # Add crew_name to each line to include it in the concatenated CSV
+                modified_line = f'"{crew_name}",{line}\n'
                 file.write(modified_line)
 
     return file_path
+
 
 
 
@@ -236,9 +218,9 @@ def rank_crews(ollama, csv_file_paths, overall_goal, verbose=False):
             if csv_data.count('\n') < 1:
                 continue
 
-            # Skip the header of each file and concatenate the rest
-            csv_data_without_header = csv_data[csv_data.index('\n') + 1:]
-            concatenated_csv_data += csv_data_without_header + '\n'
+            # Concatenate the CSV data without removing the crew_name
+            concatenated_csv_data += csv_data[csv_data.index('\n') + 1:] + '\n'
+
         except Exception as e:
             print(f"Error processing file {file_path}: {e}")
 
@@ -285,6 +267,7 @@ def rank_crews(ollama, csv_file_paths, overall_goal, verbose=False):
     overall_summary += f'The ranking and critique can be used to make informed decisions about the crews.\n'
 
     return ranked_crews, overall_summary
+
 
 
 def main():
@@ -354,7 +337,6 @@ def main():
                 raise ValueError('No response from Ollama')
 
             file_path = save_csv_output(response, overall_goal, greek_alphabets)
-            add_filename_to_csv(file_path, greek_alphabets[i % len(greek_alphabets)])  # Add the crew_name to the CSV file
             csv_file_paths.append(file_path)  # Store the CSV file path
             agents_data = parse_csv_data(response, delimiter=',', filename=file_path)
             if not agents_data:
