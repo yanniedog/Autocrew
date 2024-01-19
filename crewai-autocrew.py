@@ -19,7 +19,7 @@ from typing import Any, Dict, List
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Autocrew version
-autocrew_version = "1.2.3.2"
+autocrew_version = "1.2.3.3"
 
 
 def initialize_ollama(model='openhermes'):
@@ -369,16 +369,20 @@ def main():
             ranked_crews, overall_summary = rank_crews(ollama, csv_file_paths, overall_goal, args.verbose)
             print(overall_summary)
 
-            if args.auto_run:
-                # Extract the top-ranked crew name
-                top_crew_line = overall_summary.split('\n')[0]
-                top_crew_name = top_crew_line.split(':')[1].strip().strip('"')
+            import re
+            top_crew_name_search = re.search(r'"(.+?)"', overall_summary)
+            if top_crew_name_search:
+                top_crew_name = top_crew_name_search.group(1)
+            else:
+                print("Error: Top-ranked crew name not found in the overall summary.")
 
-                # Find the script file path corresponding to the top-ranked crew
-                top_script_path = None
-                for file_path in csv_file_paths:
-                    if top_crew_name in file_path:
-                        top_script_path = file_path.replace('.csv', '.py')
+            if args.auto_run:
+                overall_goal_formatted = overall_goal.replace(" ", "-")
+                script_files = [f for f in os.listdir(os.getcwd()) if f.endswith('.py')]
+
+                for script_file in script_files:
+                    if overall_goal_formatted in script_file and top_crew_name in script_file:
+                        top_script_path = os.path.join(os.getcwd(), script_file)
                         break
 
             # Execute the top-ranked script
