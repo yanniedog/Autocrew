@@ -18,7 +18,7 @@ from typing import Any, Dict, List
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Autocrew version
-autocrew_version = "1.1.3"
+autocrew_version = "1.2"
 
 
 def initialize_ollama(model='openhermes'):
