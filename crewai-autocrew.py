@@ -1,6 +1,7 @@
 import argparse
 import csv
 import os
+import json
 import io
 import sys
 import traceback
@@ -18,7 +19,7 @@ from typing import Any, Dict, List
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Autocrew version
-autocrew_version = "1.2.3.1"
+autocrew_version = "1.2.3.2"
 
 
 def initialize_ollama(model='openhermes'):
@@ -205,59 +206,61 @@ def check_latest_version():
         return None
 
 
+import csv
+import io
+import json
+
 def rank_crews(ollama, csv_file_paths, overall_goal, verbose=False):
-    ranked_crews = []  # Initialize the ranked_crews list
-    overall_summary = ''  # Initialize the overall_summary variable
+    ranked_crews = []
+    overall_summary = ''
     concatenated_csv_data = 'crew_name,role,goal,backstory,assigned_task,allow_delegation\n'
-    
 
     for file_path in csv_file_paths:
         try:
             with open(file_path, 'r') as file:
                 csv_data = file.read().strip()
 
-            # Skip if only header is present in the file
             if csv_data.count('\n') < 1:
                 continue
 
-            # Concatenate the CSV data without removing the crew_name
             concatenated_csv_data += csv_data[csv_data.index('\n') + 1:] + '\n'
 
         except Exception as e:
             print(f"Error processing file {file_path}: {e}")
 
-    # Check if concatenated data is empty (other than the header)
     if concatenated_csv_data.strip() == 'crew_name,role,goal,backstory,assigned_task,allow_delegation':
-        error_message = "Error: Concatenated CSV data is empty. No valid data found in the provided CSV files."
-        debug_info = f"Checked CSV files: {csv_file_paths}"
-        raise ValueError(f"{error_message}\nDebug Information: {debug_info}")
+        print("Warning: No valid data found in the provided CSV files.")
+        return [], "No ranking could be performed due to insufficient data."
 
-    # Save the concatenated CSV data to a file
-    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    overall_goal_formatted = overall_goal.replace(" ", "-")
-    concatenated_file_name = f'crewai-autocrew-{timestamp}-{overall_goal_formatted}-concatenated.csv'
-    concatenated_file_path = os.path.join(os.getcwd(), concatenated_file_name)
+    # Convert the concatenated CSV data to a JSON object
+    json_data = []
+    csv_reader = csv.DictReader(io.StringIO(concatenated_csv_data))
+    for row in csv_reader:
+        json_data.append(row)
+    json_data_str = json.dumps(json_data)
 
-    with open(concatenated_file_path, 'w') as file:
-        file.write(concatenated_csv_data)
-
-    # Print concatenated CSV data only if verbose flag is set
     if verbose:
         print('\nConcatenated CSV Data:')
         print(concatenated_csv_data)
 
-    # Construct and print the Ollama prompt if verbose
+    crew_names_str = ', '.join([os.path.basename(file_path).split('-')[-1].split('.')[0] for file_path in csv_file_paths])
+
+    # Construct and print the Ollama prompt with the crew names
     prompt = (
-        "Analyze the following list of crews to determine their suitability for successfully completing the task: "
-        f"{overall_goal}. [rest of the prompt]..."
+        f"Analyze the following list of crews ({crew_names_str}) to determine their suitability for successfully completing the task: "
+        f"{overall_goal}. The crews are represented in a JSON object format: {json_data_str}. "
+        "Please provide a ranking of the crews by their names, with the most suitable crew listed first. "
+        "Also, provide a brief critique for each crew, highlighting their strengths and weaknesses."
     )
+
+
     if verbose:
         print("Prompt to be sent to Ollama:\n", prompt)
 
-    # Invoke Ollama with the prompt and ensure output is streamed
+    # Invoke Ollama with the prompt and JSON object
     ranked_crew = ollama.invoke(prompt)
 
-    ranked_crews.append((concatenated_file_path, ranked_crew))
+    ranked_crews.append((concatenated_csv_data, ranked_crew))
     overall_summary += f'\n\nCrews in the following CSV files:\n'
     for file_path in csv_file_paths:
         overall_summary += f'{file_path}\n'
@@ -269,7 +272,6 @@ def rank_crews(ollama, csv_file_paths, overall_goal, verbose=False):
     overall_summary += f'The ranking and critique can be used to make informed decisions about the crews.\n'
 
     return ranked_crews, overall_summary
-
 
 
 def main():
