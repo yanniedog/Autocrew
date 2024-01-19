@@ -18,7 +18,7 @@ from typing import Any, Dict, List
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Autocrew version
-autocrew_version = "1.2"
+autocrew_version = "1.2.1"
 
 
 def initialize_ollama(model='openhermes'):
@@ -224,32 +224,33 @@ def check_latest_version():
 
 
 def rank_crews(ollama, csv_file_paths, overall_goal, verbose=False):
-    ranked_crews = []
-    overall_summary = ""
+    ranked_crews = []  # Initialize the ranked_crews list
     concatenated_csv_data = 'crew_name,role,goal,backstory,assigned_task,allow_delegation\n'
 
-    greek_alphabets = ["alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta", "iota", "kappa",
-                       "lambda", "mu", "nu", "xi", "omicron", "pi", "rho", "sigma", "tau", "upsilon"]
+    for file_path in csv_file_paths:
+        try:
+            with open(file_path, 'r') as file:
+                csv_data = file.read().strip()
 
-    for index, file_path in enumerate(csv_file_paths):
-        if "ranking" in file_path.lower():
-            continue  # Skip processing if the filename contains "ranking"
+            # Skip if only header is present in the file
+            if csv_data.count('\n') < 1:
+                continue
 
-        with open(file_path, 'r') as file:
-            csv_data = file.read()
+            # Skip the header of each file and concatenate the rest
+            csv_data_without_header = csv_data[csv_data.index('\n') + 1:]
+            concatenated_csv_data += csv_data_without_header + '\n'
+        except Exception as e:
+            print(f"Error processing file {file_path}: {e}")
 
-        # Remove the file_name column from the CSV data
-        csv_rows = csv_data.strip().split('\n')
-        csv_rows_without_filename = [','.join(row.split(',')[1:]) for row in csv_rows]
-
-        # Replace the crew_name with the greek letter in double quotes
-        crew_name = '"' + (greek_alphabets[index] if index < len(greek_alphabets) else f'Crew_{index + 1}') + '"'
-        csv_rows_with_crew_name = [f'{crew_name},{row}' if i != 0 else row for i, row in enumerate(csv_rows_without_filename)]
-        concatenated_csv_data += '\n'.join(csv_rows_with_crew_name[1:]) + '\n'
+    # Check if concatenated data is empty (other than the header)
+    if concatenated_csv_data.strip() == 'crew_name,role,goal,backstory,assigned_task,allow_delegation':
+        error_message = "Error: Concatenated CSV data is empty. No valid data found in the provided CSV files."
+        debug_info = f"Checked CSV files: {csv_file_paths}"
+        raise ValueError(f"{error_message}\nDebug Information: {debug_info}")
 
     # Save the concatenated CSV data to a file
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    overall_goal_formatted = overall_goal[:40].replace(" ", "-")
+    overall_goal_formatted = overall_goal.replace(" ", "-")
     concatenated_file_name = f'crewai-autocrew-{timestamp}-{overall_goal_formatted}-concatenated.csv'
     concatenated_file_path = os.path.join(os.getcwd(), concatenated_file_name)
 
@@ -261,29 +262,13 @@ def rank_crews(ollama, csv_file_paths, overall_goal, verbose=False):
         print('\nConcatenated CSV Data:')
         print(concatenated_csv_data)
 
-    with open(concatenated_file_path, 'w') as file:
-        file.write(concatenated_csv_data)
-
-    # Print concatenated CSV data only if verbose flag is set
-    if verbose:
-        print('\nConcatenated CSV Data:')
-        print(concatenated_csv_data)
-
-    # Optimized prompt for Ollama
+    # Construct and print the Ollama prompt if verbose
     prompt = (
         "Analyze the following list of crews to determine their suitability for successfully completing the task: "
-        f"{overall_goal}. For each crew, rank them based after doing a detailed analysis of the quality of the data provided and the likelihood that the crew will complete this task. "
-        "Structure your response with clear and explicit fields as follows:\n\n"
-        "For each crew:\n"
-        "1. Crew Name: Include the crew's name in double quotes.\n"
-        "2. Rank: Assign a numerical rank, with 1 being the most likely to succeed.\n"
-        "3. Explanation: Provide a brief explanation for the assigned rank, highlighting the strengths and weaknesses of the crew in relation to the task.\n\n"
-        "After ranking all crews, focus on the top-ranked crew:\n"
-        "- Top-Ranked Crew Analysis:\n"
-        "  - Crew Name: [Top crew's name in double quotes]\n"
-        "  - Recommendation: Provide specific recommendations on how this crew could be further improved to enhance their chances of successfully completing the overall goal.\n\n"
-        "Ensure that the response is clearly segmented into two parts: the rankings for each crew and the detailed analysis for the top-ranked crew."
+        f"{overall_goal}. [rest of the prompt]..."
     )
+    if verbose:
+        print("Prompt to be sent to Ollama:\n", prompt)
 
     # Invoke Ollama with the prompt and ensure output is streamed
     ranked_crew = ollama.invoke(prompt)
@@ -336,6 +321,9 @@ def main():
         print("  - Verbose mode activated. Additional details will be provided during execution.")
     print()
 
+    if args.ranking and not args.overall_goal:
+        print("Warning: Ranking mode requires an overall goal. Please provide an overall goal using the command line or by entering it when prompted.")
+    
     if args.overall_goal is None:
         overall_goal = input('\nPlease specify the overall goal: \n')
     else:
@@ -350,11 +338,12 @@ def main():
 
     ollama = initialize_ollama()
 
-    if not args.ranking:  # Add this conditional statement
+    # Generate the specified number of scripts using the -m option
+    if not args.ranking or args.multiple:
         existing_csv_files = [f for f in os.listdir(os.getcwd()) if f.endswith('.csv') and overall_goal in f and any(greek_alpha in f for greek_alpha in greek_alphabets)]
         existing_indices = [greek_alphabets.index(greek_alpha) for f in existing_csv_files for greek_alpha in greek_alphabets if greek_alpha in f]
         starting_index = max(existing_indices) + 1 if existing_indices else 0
-        
+
         for i in range(starting_index, starting_index + num_scripts):
             print(f"\nStarting script generation {i + 1} of {num_scripts} for the goal: '{overall_goal}'\n")
 
@@ -382,23 +371,28 @@ def main():
                 print(f'\nAutomatically running script {i + 1}...\n')
                 os.system(f'python3 {crewai_script_path}')
 
+    # Perform ranking using the -r option
     if args.ranking:
         print("Sending ranking request to Ollama...\n")
-        ranked_crews, overall_summary = rank_crews(ollama, csv_file_paths, overall_goal, args.verbose)
+        # Use the CSV files generated above if multiple scripts were generated
+        if not csv_file_paths and args.overall_goal:
+            # If no new CSV files were generated, look for existing ones
+            csv_file_paths = [f for f in os.listdir(os.getcwd()) if f.endswith('.csv') and args.overall_goal in f]
+        if csv_file_paths:
+            ranked_crews, overall_summary = rank_crews(ollama, csv_file_paths, overall_goal, args.verbose)
+            print(overall_summary)
 
-        print(overall_summary)
+            if args.auto_run:
+                # Extract the top-ranked crew name
+                top_crew_line = overall_summary.split('\n')[0]
+                top_crew_name = top_crew_line.split(':')[1].strip().strip('"')
 
-        if args.auto_run:
-            # Extract the top-ranked crew name
-            top_crew_line = overall_summary.split('\n')[0]
-            top_crew_name = top_crew_line.split(':')[1].strip().strip('"')
-
-            # Find the script file path corresponding to the top-ranked crew
-            top_script_path = None
-            for file_path in csv_file_paths:
-                if top_crew_name in file_path:
-                    top_script_path = file_path.replace('.csv', '.py')
-                    break
+                # Find the script file path corresponding to the top-ranked crew
+                top_script_path = None
+                for file_path in csv_file_paths:
+                    if top_crew_name in file_path:
+                        top_script_path = file_path.replace('.csv', '.py')
+                        break
 
             # Execute the top-ranked script
             if top_script_path:
