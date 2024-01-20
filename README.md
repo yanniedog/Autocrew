@@ -1,95 +1,79 @@
-# AutoCrew for CrewAI
-## Introduction
-Welcome to AutoCrew for CrewAI, an innovative Python tool designed to automate the creation and evaluation of virtual agent teams. Integrating with Ollama for AI-driven decision-making, this script streamlines processes within the CrewAI framework, making it an indispensable resource for developers and researchers in AI and machine learning.
+# Autocrew
+
+Autocrew is a standalone project that serves as a front-end application for CrewAI. It's designed to automate the process of generating scripts for CrewAI. Although it's currently compatible with CrewAI, future plans include expanding Autocrew to be compatible with other alternatives such as Autogen. Please note that Autocrew is not affiliated with CrewAI.
 
 ## Table of Contents
-- [Introduction](#introduction)
-- [Features](#features)
-- [Prerequisites](#prerequisites)
+
 - [Installation](#installation)
 - [Usage](#usage)
+- [Command Line Parameters](#command-line-parameters)
 - [Examples](#examples)
-- [Troubleshooting](#troubleshooting)
-- [FAQ](#faq)
 - [Contributing](#contributing)
 - [License](#license)
-- [Acknowledgments](#acknowledgments)
-- [Versioning and Updates](#versioning-and-updates)
-
-## Features
-- **Agent Team Creation**: Automates generation of agent teams with specified roles and tasks.
-- **Integration with Ollama and CrewAI**: Leverages Ollama for decision-making and CrewAI for agent management.
-- **CSV Data Management**: Facilitates agent data handling in CSV format.
-- **Multiple Script Generation**: Supports creation of various scripts for different objectives.
-- **Team Ranking Functionality**: Evaluates and ranks agent teams based on effectiveness and goal alignment.
-
-## Prerequisites
-- Python 3.x
-- OpenAI API key (for Ollama interactions)
-- Basic knowledge of Python and command-line operations.
 
 ## Installation
-1. Clone the repository to your local machine.
-2. Install Python 3.x if not already installed: [Python Installation Guide](https://www.python.org/downloads/).
-3. Obtain an OpenAI API key from [OpenAI](https://openai.com/).
-4. Install necessary dependencies:
+
+Before you install Autocrew, ensure you have Python 3.7 or later installed on your system.
+
+To install Autocrew, follow these steps:
+
+1. Clone the repository:
+   ```
+   git clone https://github.com/yanniedog/autocrew.git
+   ```
+2. Navigate to the project directory:
+   ```
+   cd autocrew
+   ```
+3. Install the required dependencies:
    ```
    pip install -r requirements.txt
    ```
 
 ## Usage
-Execute the script in a terminal as follows:
+
+To use Autocrew, run the main script `autocrew.py` with your desired command-line parameters. For example:
+
 ```
-python3 crewai-autocrew.py [options] "overall_goal"
+python3 autocrew.py "Save the world"
 ```
 
-### Options
-- `"overall_goal"`: Main objective for the agent crew (in quotes).
-- `-a`: Automatically run the generated script.
-- `-m[NUM]`: Create multiple crews for the same goal. Replace `[NUM]` with the number required.
-- `-r`: (*experimental*): Rank crews generated with the "-m" option.
+## Command Line Parameters
+
+Autocrew supports various command-line parameters to customize its behavior:
+
+- `overall_goal`: The overall goal for the crew (required).
+- `-a`, `--auto_run`: Automatically run the generated script.
+- `-m`, `--multiple`: Create a specified number of CrewAI scripts for the same overall goal. Example: `-m 3`.
+- `-r`, `--ranking`: Perform ranking only based on existing CSV files (currently experimental).
+- `-v`, `--verbose`: Enable verbose output.
 
 ## Examples
-### Basic Command
-```
-python3 crewai-autocrew.py "create a smartphone app with a Voice Chatbot for scam calls"
-```
 
-### Automatic Execution
-```
-python3 crewai-autocrew.py "Summarise the latest tech news" -a
-```
+Here are some examples of how to use Autocrew:
 
-### Multiple Scripts
-```
-python3 crewai-autocrew.py "Develop a handheld quantum computer" -m3
-```
-
-### Ranking Crews
-```
-python3 crewai-autocrew.py "Environmental Cleanup" -r
-```
-
-## Troubleshooting
-For common issues, refer to the [Troubleshooting Guide](Troubleshooting.md).
-
-## FAQ
-Answers to frequently asked questions can be found in the [FAQ section](FAQ.md).
+- Generate a single script with an overall goal of "Save the world":
+  ```
+  python3 autocrew.py "Save the world"
+  ```
+- Generate three scripts with the same overall goal and automatically run them:
+  ```
+  python3 autocrew.py "Save the world" -m 3 -a
+  ```
+- Perform ranking based on existing CSV files for a given overall goal:
+  ```
+  python3 autocrew.py "Save the world" -r
+  ```
 
 ## Contributing
-Contributions are welcome. Please fork the repository and submit pull requests for enhancements.
+
+Contributions are welcome! Please feel free to submit a Pull Request or create an Issue.
 
 ## License
-This project is under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Acknowledgments
-Special thanks to all contributors and users of the CrewAI community.
+Autocrew is released under the [MIT License](https://opensource.org/licenses/MIT).
 
-## Versioning and Updates
-Regular updates are made to this script. Check the [Releases](https://github.com/yourrepository/crewai-autocrew/releases) page for the latest version.
+## Resources
 
----
-
-**Disclaimer**: This script is updated regularly. Ensure you're using the latest version for optimal functionality.
-
----
+- [CrewAI](https://www.crewai.com): The AI platform that Autocrew is currently compatible with.
+- [Autogen](https://www.autogen.com): A potential future alternative to CrewAI.
