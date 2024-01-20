@@ -1,5 +1,7 @@
 # Autocrew
 
+![Autocrew_logo](./docs/logo.png)
+
 Autocrew is a standalone project that serves as a front-end application for CrewAI. It's designed to automate the process of generating scripts for CrewAI. Although it's currently compatible with CrewAI, future plans include expanding Autocrew to be compatible with other alternatives such as Autogen. Please note that Autocrew is not affiliated with CrewAI.
 
 ## Table of Contents
