@@ -32,21 +32,15 @@ Before using Autocrew, make sure you have the following prerequisites installed:
 
 To get started with Autocrew, you'll need to clone the Git repository to your local machine. Follow these steps:
 
-1. Open your terminal or command prompt.
+1. Open your terminal or command prompt. (On windows, you'll need to install an Ubuntu 20.04 distribution within WSL)
 
-2. Navigate to the directory where you want to store the Autocrew project:
-
-```bash
-cd /path/to/your/desired/directory
-```
-
-3. Clone the Autocrew repository from GitHub using the following command:
+2. Clone the Autocrew repository from GitHub using the following command:
 
 ```bash
 git clone https://github.com/yanniedog/autocrew.git
 ```
 
-4. Once the repository is cloned, you can navigate into the Autocrew directory:
+3. Once the repository is cloned, you can navigate into the Autocrew directory:
 
 ```bash
 cd autocrew
