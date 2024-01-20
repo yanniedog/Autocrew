@@ -1,18 +1,18 @@
 # Autocrew: Where AI Builds Itself
 
-
 Autocrew is a Python script designed to simplify the process of generating scripts for CrewAI, a collaborative language AI platform. It automates the creation of CrewAI agent and task scripts based on your specified overall goal, and it can also rank crews based on their suitability for completing a given task.
 
 ![Autocrew_logo](./docs/logo.png)
-## Features
 
-- **Script Generation:** Autocrew can generate CrewAI agent and task scripts for a specified overall goal. It communicates with the Ollama language model to generate agent details, including roles, goals, backstories, assigned tasks, and delegation abilities. The generated scripts are ready for execution within CrewAI.
+## Key Features
 
-- **Ranking Mode:** Autocrew can rank existing crews based on their suitability for a particular task. It collects CSV data files that represent different crews, communicates with Ollama to analyze and rank them, and provides a summary of the ranking.
+- **Script Generation**: Autocrew can generate CrewAI agent and task scripts for a specified overall goal. It communicates with the Ollama language model to generate agent details, including roles, goals, backstories, assigned tasks, and delegation abilities. The generated scripts are ready for execution within CrewAI.
 
-- **Multiple Script Generation:** You can specify the number of scripts to generate for the same overall goal, allowing you to create multiple versions of your crew for comparison or experimentation.
+- **Ranking Mode**: Autocrew can rank existing crews based on their suitability for a particular task. It collects CSV data files that represent different crews, communicates with Ollama to analyze and rank them, and provides a summary of the ranking.
 
-- **Automatic Execution:** Autocrew can automatically execute the generated scripts within CrewAI, saving you time and effort.
+- **Multiple Script Generation**: You can specify the number of scripts to generate for the same overall goal, allowing you to create multiple versions of your crew for comparison or experimentation.
+
+- **Automatic Execution**: Autocrew can automatically execute the generated scripts within CrewAI, saving you time and effort.
 
 ## Prerequisites
 
@@ -27,6 +27,34 @@ Before using Autocrew, make sure you have the following prerequisites installed:
   - `requests`
   - `crewai`
   - `langchain_community`
+
+## Getting Started
+
+To get started with Autocrew, you'll need to clone the Git repository to your local machine. Follow these steps:
+
+1. Open your terminal or command prompt.
+
+2. Navigate to the directory where you want to store the Autocrew project:
+
+```bash
+cd /path/to/your/desired/directory
+```
+
+3. Clone the Autocrew repository from GitHub using the following command:
+
+```bash
+git clone https://github.com/yanniedog/autocrew.git
+```
+
+4. Once the repository is cloned, you can navigate into the Autocrew directory:
+
+```bash
+cd autocrew
+```
+
+Now you have successfully cloned the Autocrew repository to your local machine, and you can start using and contributing to the project.
+
+If you encounter any issues, have questions, or want to contribute to Autocrew, please refer to the "Contributing" section in this README for guidelines on making changes and submitting pull requests.
 
 ## Usage
 
@@ -75,11 +103,10 @@ Autocrew is licensed under the [MIT License](LICENSE).
 
 ## Acknowledgments
 
-Autocrew was created by [Your Name] and is based on the [CrewAI](https://example.com/crewai) platform.
+Autocrew was created by Yanniedog. It was initially built to interact with the CrewAI platform, but compatibility with other platforms (such as Autogen) is currently in development.
+```
 
-## Contact
-
-For any questions or issues, please contact [Your Email Address].
+Feel free to use this revised README for your Autocrew project, and make any further adjustments as needed.
 
 **Disclaimer:** Autocrew is not affiliated with or endorsed by CrewAI or any other third-party services mentioned in this script. It is provided as an open-source project for script generation and ranking purposes.
 
