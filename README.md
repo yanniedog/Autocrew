@@ -104,11 +104,3 @@ Autocrew is licensed under the [MIT License](LICENSE).
 ## Acknowledgments
 
 Autocrew was created by Yanniedog. It was initially built to interact with the CrewAI platform, but compatibility with other platforms (such as Autogen) is currently in development.
-```
-
-Feel free to use this revised README for your Autocrew project, and make any further adjustments as needed.
-
-**Disclaimer:** Autocrew is not affiliated with or endorsed by CrewAI or any other third-party services mentioned in this script. It is provided as an open-source project for script generation and ranking purposes.
-
-- [CrewAI](https://www.crewai.com): The AI platform that Autocrew is currently compatible with.
-- [Autogen](https://www.autogen.com): A potential future alternative to CrewAI.
