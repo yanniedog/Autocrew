@@ -1,12 +1,9 @@
-# Autocrew
+# Autocrew: Where AI Builds Itself
 
-![Autocrew_logo](./docs/logo.png)
-# Autocrew: Automated CrewAI Script Generation and Ranking
-
-![Autocrew Logo](https://example.com/autocrew_logo.png)
 
 Autocrew is a Python script designed to simplify the process of generating scripts for CrewAI, a collaborative language AI platform. It automates the creation of CrewAI agent and task scripts based on your specified overall goal, and it can also rank crews based on their suitability for completing a given task.
 
+![Autocrew_logo](./docs/logo.png)
 ## Features
 
 - **Script Generation:** Autocrew can generate CrewAI agent and task scripts for a specified overall goal. It communicates with the Ollama language model to generate agent details, including roles, goals, backstories, assigned tasks, and delegation abilities. The generated scripts are ready for execution within CrewAI.
