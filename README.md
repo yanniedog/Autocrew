@@ -1,7 +1,6 @@
-# CrewAI AutoCrew Script
-
+# AutoCrew for CrewAI
 ## Introduction
-Welcome to the CrewAI AutoCrew Script, an innovative Python tool designed to automate the creation and evaluation of virtual agent teams. Integrating with Ollama for AI-driven decision-making, this script streamlines processes within the CrewAI framework, making it an indispensable resource for developers and researchers in AI and machine learning.
+Welcome to AutoCrew for CrewAI, an innovative Python tool designed to automate the creation and evaluation of virtual agent teams. Integrating with Ollama for AI-driven decision-making, this script streamlines processes within the CrewAI framework, making it an indispensable resource for developers and researchers in AI and machine learning.
 
 ## Table of Contents
 - [Introduction](#introduction)
