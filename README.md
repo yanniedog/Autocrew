@@ -27,8 +27,9 @@ Before using Autocrew, make sure you have the following prerequisites installed:
   - `requests`
   - `crewai`
   - `langchain_community`
-
-On Windows, you'll need to install an Ubuntu 20.04 distribution within WSL. For more information, see [this guide.](https://www.jeremymorgan.com/blog/generative-ai/how-to-run-llm-local-windows/)
+- [Ollama](Ollama.ai)
+  - NOTE: Ollama is currently available for Linux and Mac only
+  - In order to run Ollama on windows, you need to install the Ubuntu 20.04 distribution within WSL. Please see [this guide](https://www.jeremymorgan.com/blog/generative-ai/how-to-run-llm-local-windows/) for more information.
 
 ## Getting Started
 
@@ -99,4 +100,4 @@ Autocrew is licensed under the [MIT License](LICENSE).
 
 ## Acknowledgments
 
-Autocrew was created by [Yanniedog](https://github.com/yanniedog). It was initially built to interact with the CrewAI platform, but compatibility with other platforms (such as Autogen) is currently in development.
+Autocrew was created by [Yanniedog](https://github.com/yanniedog). It was initially built to interact with the [CrewAI](https://github.com/joaomdmoura/crewAI) platform, but compatibility with other platforms (such as [Autogen](https://microsoft.github.io/autogen/)) is currently in development.
