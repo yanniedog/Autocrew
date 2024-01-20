@@ -28,11 +28,13 @@ Before using Autocrew, make sure you have the following prerequisites installed:
   - `crewai`
   - `langchain_community`
 
+On Windows, you'll need to install an Ubuntu 20.04 distribution within WSL. For more information, see [this guide.](https://www.jeremymorgan.com/blog/generative-ai/how-to-run-llm-local-windows/)
+
 ## Getting Started
 
 To get started with Autocrew, you'll need to clone the Git repository to your local machine. Follow these steps:
 
-1. Open your terminal or command prompt. (On windows, you'll need to install an Ubuntu 20.04 distribution within WSL)
+1. Open your terminal or command prompt.
 
 2. Clone the Autocrew repository from GitHub using the following command:
 
@@ -97,4 +99,4 @@ Autocrew is licensed under the [MIT License](LICENSE).
 
 ## Acknowledgments
 
-Autocrew was created by Yanniedog. It was initially built to interact with the CrewAI platform, but compatibility with other platforms (such as Autogen) is currently in development.
+Autocrew was created by [Yanniedog](https://github.com/yanniedog). It was initially built to interact with the CrewAI platform, but compatibility with other platforms (such as Autogen) is currently in development.
