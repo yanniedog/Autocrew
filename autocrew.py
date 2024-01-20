@@ -19,7 +19,7 @@ from typing import Any, Dict, List
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Autocrew version
-autocrew_version = "1.2.3.5"
+autocrew_version = "1.2.3.6"
 
 
 def initialize_ollama(model='openhermes'):
@@ -102,13 +102,19 @@ def parse_csv_data(response, delimiter=',', filename=''):
         for i, value in enumerate(line):
             header_name = header_indices[i]
             if header_name:
-                agent_data[header_name] = value.strip('"')
+                if header_name == 'assigned_task':
+                    # Replace commas with 'and' within square brackets and remove the square brackets
+                    value = value.replace(',', ' and ').replace('[', '').replace(']', '')
+                    agent_data[header_name] = value.strip()
+                else:
+                    agent_data[header_name] = value.strip('"')
         if 'role' not in agent_data or not agent_data['role']:
             raise ValueError('Role component missing in CSV data')
         agent_data['filename'] = filename  # Add the filename to the agent data
         agents_data.append(agent_data)
 
     return agents_data
+
 
 
 def define_agent(agent, search_tool):
@@ -283,7 +289,7 @@ def main():
     if latest_version and latest_version != autocrew_version:
         print(f'\nNew version available: {latest_version}\n')
 
-    print("\nTo see the available command line parameters, type: python3 crewai-autocrew.py -h\n")
+    print("\nTo see the available command line parameters, type: python3 autocrew.py -h\n")
 
     parser = argparse.ArgumentParser(description='CrewAI Autocrew Script')
     parser.add_argument('overall_goal', nargs='?', type=str, help='The overall goal for the crew')
