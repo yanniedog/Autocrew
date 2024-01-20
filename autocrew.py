@@ -19,7 +19,7 @@ from typing import Any, Dict, List
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Autocrew version
-autocrew_version = "1.2.3.4"
+autocrew_version = "1.2.3.5"
 
 
 def initialize_ollama(model='openhermes'):
@@ -190,7 +190,7 @@ def write_crewai_script(agents_data, crew_tasks, file_name):
 
 def check_latest_version():
     try:
-        response = requests.get('https://raw.githubusercontent.com/yanniedog/crewai-autocrew/main/crewai-autocrew.py')
+        response = requests.get('https://raw.githubusercontent.com/yanniedog/autocrew/main/autocrew.py')
         response.raise_for_status()
         script_content = response.text
         version_line = next(line for line in script_content.split('\n') if line.startswith('autocrew_version = '))
