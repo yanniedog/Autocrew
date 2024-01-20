@@ -1,81 +1,90 @@
 # Autocrew
 
 ![Autocrew_logo](./docs/logo.png)
+# Autocrew: Automated CrewAI Script Generation and Ranking
 
-Autocrew is a standalone project that serves as a front-end application for CrewAI. It's designed to automate the process of generating scripts for CrewAI. Although it's currently compatible with CrewAI, future plans include expanding Autocrew to be compatible with other alternatives such as Autogen. Please note that Autocrew is not affiliated with CrewAI.
+![Autocrew Logo](https://example.com/autocrew_logo.png)
 
-## Table of Contents
+Autocrew is a Python script designed to simplify the process of generating scripts for CrewAI, a collaborative language AI platform. It automates the creation of CrewAI agent and task scripts based on your specified overall goal, and it can also rank crews based on their suitability for completing a given task.
 
-- [Installation](#installation)
-- [Usage](#usage)
-- [Command Line Parameters](#command-line-parameters)
-- [Examples](#examples)
-- [Contributing](#contributing)
-- [License](#license)
+## Features
 
-## Installation
+- **Script Generation:** Autocrew can generate CrewAI agent and task scripts for a specified overall goal. It communicates with the Ollama language model to generate agent details, including roles, goals, backstories, assigned tasks, and delegation abilities. The generated scripts are ready for execution within CrewAI.
 
-Before you install Autocrew, ensure you have Python 3.7 or later installed on your system.
+- **Ranking Mode:** Autocrew can rank existing crews based on their suitability for a particular task. It collects CSV data files that represent different crews, communicates with Ollama to analyze and rank them, and provides a summary of the ranking.
 
-To install Autocrew, follow these steps:
+- **Multiple Script Generation:** You can specify the number of scripts to generate for the same overall goal, allowing you to create multiple versions of your crew for comparison or experimentation.
 
-1. Clone the repository:
-   ```
-   git clone https://github.com/yanniedog/autocrew.git
-   ```
-2. Navigate to the project directory:
-   ```
-   cd autocrew
-   ```
-3. Install the required dependencies:
-   ```
-   pip install -r requirements.txt
-   ```
+- **Automatic Execution:** Autocrew can automatically execute the generated scripts within CrewAI, saving you time and effort.
+
+## Prerequisites
+
+Before using Autocrew, make sure you have the following prerequisites installed:
+
+- Python 3.x
+- Required Python packages (install using `pip`):
+  - `argparse`
+  - `csv`
+  - `io`
+  - `json`
+  - `requests`
+  - `crewai`
+  - `langchain_community`
 
 ## Usage
 
-To use Autocrew, run the main script `autocrew.py` with your desired command-line parameters. For example:
+### Script Generation
 
+To generate CrewAI scripts for a specified overall goal, use the following command:
+
+```bash
+python3 autocrew.py <overall_goal> [-a] [-m NUM] [-v]
 ```
-python3 autocrew.py "Save the world"
+
+- `<overall_goal>`: Specify the overall goal for your crew.
+- `-a` (optional): Automatically run the generated script(s) after generation.
+- `-m NUM` (optional): Generate NUM number of scripts for the same overall goal.
+- `-v` (optional): Enable verbose output for detailed information.
+
+### Ranking Mode
+
+To rank existing crews based on their suitability for a task, use the following command:
+
+```bash
+python3 autocrew.py -r <overall_goal> [-v]
 ```
 
-## Command Line Parameters
+- `-r`: Activate ranking mode.
+- `<overall_goal>`: Specify the overall goal for ranking.
+- `-v` (optional): Enable verbose output for detailed information.
 
-Autocrew supports various command-line parameters to customize its behavior:
+## Example
 
-- `overall_goal`: The overall goal for the crew (required).
-- `-a`, `--auto_run`: Automatically run the generated script.
-- `-m`, `--multiple`: Create a specified number of CrewAI scripts for the same overall goal. Example: `-m 3`.
-- `-r`, `--ranking`: Perform ranking only based on existing CSV files (currently experimental).
-- `-v`, `--verbose`: Enable verbose output.
+Here's an example of generating CrewAI scripts for a project management task:
 
-## Examples
+```bash
+python3 autocrew.py "Project Management" -a -m 3 -v
+```
 
-Here are some examples of how to use Autocrew:
-
-- Generate a single script with an overall goal of "Save the world":
-  ```
-  python3 autocrew.py "Save the world"
-  ```
-- Generate three scripts with the same overall goal and automatically run them:
-  ```
-  python3 autocrew.py "Save the world" -m 3 -a
-  ```
-- Perform ranking based on existing CSV files for a given overall goal:
-  ```
-  python3 autocrew.py "Save the world" -r
-  ```
+This command generates three CrewAI scripts for the "Project Management" goal, automatically runs them, and provides detailed output.
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request or create an Issue.
+If you would like to contribute to Autocrew, please fork the repository, make your changes, and submit a pull request. We welcome contributions and suggestions.
 
 ## License
 
-Autocrew is released under the [MIT License](https://opensource.org/licenses/MIT).
+Autocrew is licensed under the [MIT License](LICENSE).
 
-## Resources
+## Acknowledgments
+
+Autocrew was created by [Your Name] and is based on the [CrewAI](https://example.com/crewai) platform.
+
+## Contact
+
+For any questions or issues, please contact [Your Email Address].
+
+**Disclaimer:** Autocrew is not affiliated with or endorsed by CrewAI or any other third-party services mentioned in this script. It is provided as an open-source project for script generation and ranking purposes.
 
 - [CrewAI](https://www.crewai.com): The AI platform that Autocrew is currently compatible with.
 - [Autogen](https://www.autogen.com): A potential future alternative to CrewAI.
