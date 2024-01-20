@@ -2,7 +2,7 @@
 
 Autocrew is a Python script designed to simplify the process of generating scripts for CrewAI, a collaborative language AI platform. It automates the creation of CrewAI agent and task scripts based on your specified overall goal, and it can also rank crews based on their suitability for completing a given task.
 
-![Autocrew_logo](./docs/logo.png)
+![Autocrew_logo](./docs/autocrew_logo.png)
 
 ## Key Features
 
