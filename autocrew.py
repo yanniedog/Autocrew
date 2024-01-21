@@ -16,42 +16,23 @@ import logging
 from typing import Any, Dict, List
 
 # Autocrew version
-autocrew_version = "1.3"
-# This version uses ****Google Collab**** as the Ollama Server
+autocrew_version = "1.3.1"
 
 ollama_host = os.getenv('OLLAMA_HOST')
-if not ollama_host:
-    raise EnvironmentError("OLLAMA_HOST environment variable not set")
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-
-
-if ollama_host is None:
-    error_message = (
-        "OLLAMA_HOST environment variable is not set. "
-        "Please execute a command like 'export OLLAMA_HOST=https://your-ollama-host-url.com' "
-        "before running this script. The URL is based on ngrok output from the Jupyter notebook. "
-        "For further reference, see here: "
-        "https://github.com/marcogreiveldinger/videos/blob/main/ollama-ai/run-on-colab/ollama-ai-colab.ipynb"
-    )
-    raise ValueError(error_message)
-
-
-
-# Modify the initialize_ollama function to initialize the Ollama object correctly
-def initialize_ollama(model='openhermes'):
-    ollama_base_url = os.getenv('OLLAMA_HOST')
-    if not ollama_base_url:
-        raise EnvironmentError("OLLAMA_HOST environment variable not set")
-    return Ollama(base_url=ollama_base_url, model=model, verbose=True, callback_manager=CallbackManager([StreamingStdOutCallbackHandler()]))
-
-
+def initialize_ollama(model='openhermes', use_ollama_host=False):
+    if use_ollama_host:
+        ollama_base_url = os.getenv('OLLAMA_HOST')
+        if not ollama_base_url:
+            raise EnvironmentError("OLLAMA_HOST environment variable not set")
+        return Ollama(base_url=ollama_base_url, model=model, verbose=True, callback_manager=CallbackManager([StreamingStdOutCallbackHandler()]))
+    else:
+        return Ollama(model=model, verbose=True, callback_manager=CallbackManager([StreamingStdOutCallbackHandler()]))
 
 # Call the initialize_ollama function
 ollama = initialize_ollama()
-
-
 
 def get_agent_data(ollama, overall_goal, delimiter):
     instruction = (
@@ -83,7 +64,6 @@ def get_next_crew_name(overall_goal, greek_alphabets):
     next_index = max(existing_indices) + 1 if existing_indices else 0
     return greek_alphabets[next_index % len(greek_alphabets)]
 
-
 def save_csv_output(response, overall_goal, greek_alphabets):
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     crew_name = get_next_crew_name(overall_goal, greek_alphabets)
@@ -107,9 +87,6 @@ def save_csv_output(response, overall_goal, greek_alphabets):
                 file.write(modified_line)
 
     return file_path
-
-
-
 
 def parse_csv_data(response, delimiter=',', filename=''):
     header = ['role', 'goal', 'backstory', 'assigned_task', 'allow_delegation']
@@ -143,8 +120,6 @@ def parse_csv_data(response, delimiter=',', filename=''):
 
     return agents_data
 
-
-
 def define_agent(agent, search_tool):
     role_var = agent['role'].replace(' ', '_').replace('-', '_').replace('.', '_').replace(' ', '')
     role_value = agent['role'].replace('"', '\\"').replace("'", "\\'")
@@ -162,10 +137,8 @@ def define_agent(agent, search_tool):
         ')\n\n'
     )
 
-
 def get_task_var_name(role):
     return f'task_{role.replace(" ", "_").replace("-", "_").replace(".", "_")}'
-
 
 def define_task(agent):
     task_var = get_task_var_name(agent['role'])
@@ -181,12 +154,10 @@ def define_task(agent):
         ')\n\n'
     )
 
-
 def generate_crew_tasks(agents_data):
     return ', '.join([f'task_{agent["role"].replace(" ", "_").replace("-", "_").replace(".", "_")}' for agent in agents_data])
 
-
-def write_crewai_script(agents_data, crew_tasks, file_name, ollama_host):
+def write_crewai_script(agents_data, crew_tasks, file_name, use_ollama_host):
     crew_agents = ', '.join([agent['role'].replace(' ', '_').replace('-', '_').replace('.', '_') for agent in agents_data])
 
     with open(file_name, 'w') as file:
@@ -197,8 +168,15 @@ def write_crewai_script(agents_data, crew_tasks, file_name, ollama_host):
             'from langchain_community.tools import DuckDuckGoSearchRun\n'
             'from crewai import Agent, Task, Crew, Process\n\n'
             'os.environ["OPENAI_API_KEY"] = "your_OPENAI_api_key_here"\n\n'
-            f'ollama_host = "{ollama_host}"\n'  # Write the ollama_host variable to the generated script
-            'ollama_openhermes = Ollama(model="openhermes", base_url=ollama_host)\n'  # Use ollama_host to initialize Ollama
+        )
+
+        if use_ollama_host:
+            file.write(f'ollama_host = "{ollama_host}"\n')  # Write the ollama_host variable to the generated script
+            file.write('ollama_openhermes = Ollama(model="openhermes", base_url=ollama_host)\n')  # Use ollama_host to initialize Ollama
+        else:
+            file.write('ollama_openhermes = Ollama(model="openhermes")\n')
+
+        file.write(
             'search_tool = DuckDuckGoSearchRun()\n\n'
         )
 
@@ -222,8 +200,6 @@ def write_crewai_script(agents_data, crew_tasks, file_name, ollama_host):
             '# Handle the "result" as needed\n'
         )
 
-
-
 def check_latest_version():
     try:
         response = requests.get('https://raw.githubusercontent.com/yanniedog/autocrew/main/autocrew.py')
@@ -240,11 +216,6 @@ def check_latest_version():
     except Exception as e:
         print(f'Error checking the latest version: {e}')
         return None
-
-
-import csv
-import io
-import json
 
 def rank_crews(ollama, csv_file_paths, overall_goal, verbose=False):
     ranked_crews = []
@@ -289,7 +260,6 @@ def rank_crews(ollama, csv_file_paths, overall_goal, verbose=False):
         "Also, provide a brief critique for each crew, highlighting their strengths and weaknesses."
     )
 
-
     if verbose:
         print("Prompt to be sent to Ollama:\n", prompt)
 
@@ -309,17 +279,12 @@ def rank_crews(ollama, csv_file_paths, overall_goal, verbose=False):
 
     return ranked_crews, overall_summary
 
-
 def main():
     greek_alphabets = ["alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta", "iota", "kappa",
                        "lambda", "mu", "nu", "xi", "omicron", "pi", "rho", "sigma", "tau", "upsilon"]
     print(f"\nAutocrew (v{autocrew_version}) for CrewAI\n")
-    top_script_path = None  # Initialize the top_script_path variable
-    latest_version = check_latest_version()
-    if latest_version and latest_version != autocrew_version:
-        print(f'\nNew version available: {latest_version}\n')
 
-    print("\nTo see the available command line parameters, type: python3 autocrew.py -h\n")
+    print("\nTo see the available command line parameters, type: python3 autocrew.py --help\n")
 
     parser = argparse.ArgumentParser(description='CrewAI Autocrew Script')
     parser.add_argument('overall_goal', nargs='?', type=str, help='The overall goal for the crew')
@@ -327,6 +292,7 @@ def main():
     parser.add_argument('-m', '--multiple', type=int, metavar='NUM', help='Create NUM number of CrewAI scripts for the same overall goal. Example: -m 3')
     parser.add_argument('-r', '--ranking', action='store_true', help='Perform ranking only based on existing CSV files --> currently EXPERIMENTAL')
     parser.add_argument('-v', '--verbose', action='store_true', help='Enable verbose output')
+    parser.add_argument('--use_ollama_host', action='store_true', help='Use OLLAMA_HOST from the original script in the generated script')
 
     args = parser.parse_args()
 
@@ -342,6 +308,8 @@ def main():
         print("  - Ranking mode activated. Existing CSV files will be used for ranking.")
     if args.verbose:
         print("  - Verbose mode activated. Additional details will be provided during execution.")
+    if args.use_ollama_host:
+        print("  - Use OLLAMA_HOST from the original script in the generated script.")
     print()
 
     if args.ranking and not args.overall_goal:
@@ -359,7 +327,7 @@ def main():
 
     csv_file_paths = []  # Initialize the list of CSV file paths
 
-    ollama = initialize_ollama()
+    ollama = initialize_ollama(use_ollama_host=args.use_ollama_host)
 
     # Generate the specified number of scripts using the -m option
     if not args.ranking or args.multiple:
@@ -386,7 +354,7 @@ def main():
             crewai_script_path = os.path.join(os.getcwd(), file_name)
             crew_tasks = generate_crew_tasks(agents_data)
 
-            write_crewai_script(agents_data, crew_tasks, crewai_script_path, ollama_host)
+            write_crewai_script(agents_data, crew_tasks, crewai_script_path, args.use_ollama_host)
             print(f"\nScript {i + 1} written to {crewai_script_path}\n")
 
             if args.auto_run:
