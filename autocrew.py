@@ -1,29 +1,57 @@
 import argparse
 import csv
-import os
-import json
 import io
-import sys
-import traceback
-import logging
-from datetime import datetime
+import json
+import os
 import requests
+import traceback
+from datetime import datetime
+from packaging import version
 from crewai import Agent, Crew, Process, Task
 from langchain_community.llms import Ollama
 from langchain_community.tools import DuckDuckGoSearchRun
-from packaging import version
 from langchain.callbacks.manager import CallbackManager
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
+import logging
 from typing import Any, Dict, List
+
+# Autocrew version
+autocrew_version = "1.3"
+# This version uses ****Google Collab**** as the Ollama Server
+
+ollama_host = os.getenv('OLLAMA_HOST')
+if not ollama_host:
+    raise EnvironmentError("OLLAMA_HOST environment variable not set")
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Autocrew version
-autocrew_version = "1.2.3.6"
 
 
+if ollama_host is None:
+    error_message = (
+        "OLLAMA_HOST environment variable is not set. "
+        "Please execute a command like 'export OLLAMA_HOST=https://your-ollama-host-url.com' "
+        "before running this script. The URL is based on ngrok output from the Jupyter notebook. "
+        "For further reference, see here: "
+        "https://github.com/marcogreiveldinger/videos/blob/main/ollama-ai/run-on-colab/ollama-ai-colab.ipynb"
+    )
+    raise ValueError(error_message)
+
+
+
+# Modify the initialize_ollama function to initialize the Ollama object correctly
 def initialize_ollama(model='openhermes'):
-    return Ollama(model=model, verbose=True, callback_manager=CallbackManager([StreamingStdOutCallbackHandler()]))
+    ollama_base_url = os.getenv('OLLAMA_HOST')
+    if not ollama_base_url:
+        raise EnvironmentError("OLLAMA_HOST environment variable not set")
+    return Ollama(base_url=ollama_base_url, model=model, verbose=True, callback_manager=CallbackManager([StreamingStdOutCallbackHandler()]))
+
+
+
+# Call the initialize_ollama function
+ollama = initialize_ollama()
+
+
 
 def get_agent_data(ollama, overall_goal, delimiter):
     instruction = (
@@ -118,7 +146,7 @@ def parse_csv_data(response, delimiter=',', filename=''):
 
 
 def define_agent(agent, search_tool):
-    role_var = agent['role'].replace(' ', '_').replace('-', '_').replace('.', '_')
+    role_var = agent['role'].replace(' ', '_').replace('-', '_').replace('.', '_').replace(' ', '')
     role_value = agent['role'].replace('"', '\\"').replace("'", "\\'")
     backstory = agent['backstory'].replace('"', '\\"').replace("'", "\\'")
     delegation = 'True' if agent['allow_delegation'] == 'True' else 'False'
@@ -158,8 +186,8 @@ def generate_crew_tasks(agents_data):
     return ', '.join([f'task_{agent["role"].replace(" ", "_").replace("-", "_").replace(".", "_")}' for agent in agents_data])
 
 
-def write_crewai_script(agents_data, crew_tasks, file_name):
-    crew_agents = ', '.join([agent['role'].replace(' ', '').replace('-', '').replace('.', '_') for agent in agents_data])
+def write_crewai_script(agents_data, crew_tasks, file_name, ollama_host):
+    crew_agents = ', '.join([agent['role'].replace(' ', '_').replace('-', '_').replace('.', '_') for agent in agents_data])
 
     with open(file_name, 'w') as file:
         file.write(
@@ -169,7 +197,8 @@ def write_crewai_script(agents_data, crew_tasks, file_name):
             'from langchain_community.tools import DuckDuckGoSearchRun\n'
             'from crewai import Agent, Task, Crew, Process\n\n'
             'os.environ["OPENAI_API_KEY"] = "your_OPENAI_api_key_here"\n\n'
-            'ollama_openhermes = Ollama(model="openhermes")\n'
+            f'ollama_host = "{ollama_host}"\n'  # Write the ollama_host variable to the generated script
+            'ollama_openhermes = Ollama(model="openhermes", base_url=ollama_host)\n'  # Use ollama_host to initialize Ollama
             'search_tool = DuckDuckGoSearchRun()\n\n'
         )
 
@@ -192,6 +221,7 @@ def write_crewai_script(agents_data, crew_tasks, file_name):
             'result = crew.kickoff()\n\n'
             '# Handle the "result" as needed\n'
         )
+
 
 
 def check_latest_version():
@@ -356,7 +386,7 @@ def main():
             crewai_script_path = os.path.join(os.getcwd(), file_name)
             crew_tasks = generate_crew_tasks(agents_data)
 
-            write_crewai_script(agents_data, crew_tasks, crewai_script_path)
+            write_crewai_script(agents_data, crew_tasks, crewai_script_path, ollama_host)
             print(f"\nScript {i + 1} written to {crewai_script_path}\n")
 
             if args.auto_run:
