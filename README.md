@@ -4,6 +4,8 @@ Autocrew is a Python script designed to simplify the process of generating scrip
 
 ![Autocrew_logo](./docs/autocrew_logo.png)
 
+[Autocrew Discord channel](https://discord.gg/ZGxdjVSPA3)
+
 ## Key Features
 
 - **Script Generation**: Autocrew can generate CrewAI agent and task scripts for a specified overall goal. It communicates with the Ollama language model to generate agent details, including roles, goals, backstories, assigned tasks, and delegation abilities. The generated scripts are ready for execution within CrewAI.
@@ -94,6 +96,9 @@ This command generates three CrewAI scripts for the "Project Management" goal, a
 
 If you would like to contribute to Autocrew, please fork the repository, make your changes, and submit a pull request. We welcome contributions and suggestions.
 
+## Community
+
+Join the [Autocrew Discord channel](https://discord.gg/ZGxdjVSPA3)
 ## License
 
 Autocrew is licensed under the [MIT License](LICENSE).
