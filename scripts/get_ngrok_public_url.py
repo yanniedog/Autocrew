@@ -17,3 +17,6 @@ def get_ngrok_public_url():
     except subprocess.CalledProcessError as e:
         print(f"Error running ngrok-client.py: {e}")
         return None
+    except Exception as e:
+        print(f"Error capturing output from ngrok-client.py: {e}")
+        return None

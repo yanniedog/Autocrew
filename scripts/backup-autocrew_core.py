@@ -1,5 +1,3 @@
-# Filename: autocrew_core.py
-
 import argparse
 import csv
 import io
@@ -18,6 +16,7 @@ import logging
 from typing import Any, Dict, List
 import subprocess
 
+# Importing custom modules
 from get_ngrok_public_url import get_ngrok_public_url
 from initialize_ollama import initialize_ollama
 from get_agent_data import get_agent_data
@@ -32,25 +31,27 @@ from write_crewai_script import write_crewai_script
 from check_latest_version import check_latest_version
 from rank_crews import rank_crews
 
-# Autocrew version
+# Setting up logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger()
+
 autocrew_version = "1.3"
 
 def main(config):
     greek_alphabets = ["alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta", "iota", "kappa",
                        "lambda", "mu", "nu", "xi", "omicron", "pi", "rho", "sigma", "tau", "upsilon"]
-    print(f"\nAutocrew (v{autocrew_version}) for CrewAI\n")
+    logger.info(f"Autocrew (v{autocrew_version}) for CrewAI")
 
     ngrok_url = get_ngrok_public_url()
     if ngrok_url:
-        print(f"  - ngrok URL: {ngrok_url}")
+        logger.info(f"ngrok URL: {ngrok_url}")
 
     ollama_host = ""
-
     if os.getenv('OLLAMA_HOST'):
         ollama_host = os.getenv('OLLAMA_HOST')
-        print(f"  - OLLAMA_HOST: {ollama_host}")
+        logger.info(f"OLLAMA_HOST: {ollama_host}")
 
-    print("\nTo see the available command line parameters, type: python3 autocrew.py --help\n")
+    logger.info("To see the available command line parameters, type: python3 autocrew.py --help")
 
     parser = argparse.ArgumentParser(description='CrewAI Autocrew Script')
     parser.add_argument('overall_goal', nargs='?', type=str, help='The overall goal for the crew')
@@ -62,23 +63,22 @@ def main(config):
 
     args = parser.parse_args()
 
-    print("\nInitial Summary of Actions:")
+    logger.info("Initial Summary of Actions:")
     if args.overall_goal:
-        print(f"  - Overall goal specified: {args.overall_goal}")
+        logger.info(f"Overall goal specified: {args.overall_goal}")
     if args.auto_run:
-        print("  - The script(s) will be automatically run after generation.")
+        logger.info("The script(s) will be automatically run after generation.")
     if args.multiple:
-        print(f"  - Number of scripts to generate: {args.multiple}")
+        logger.info(f"Number of scripts to generate: {args.multiple}")
     if args.ranking:
-        print("  - Ranking mode activated. Existing CSV files will be used for ranking.")
+        logger.info("Ranking mode activated. Existing CSV files will be used for ranking.")
     if args.verbose:
-        print("  - Verbose mode activated. Additional details will be provided during execution.")
+        logger.info("Verbose mode activated. Additional details will be provided during execution.")
     if args.use_ollama_host:
-        print("  - Use OLLAMA_HOST from the original script in the generated script.")
-    print()
+        logger.info("Use OLLAMA_HOST from the original script in the generated script.")
 
     if args.ranking and not args.overall_goal:
-        print("Warning: Ranking mode requires an overall goal. Please provide an overall goal using the command line or by entering it when prompted.")
+        logger.warning("Ranking mode requires an overall goal. Please provide an overall goal using the command line or by entering it when prompted.")
     
     if args.overall_goal is None:
         overall_goal = input('\nPlease specify the overall goal: \n')
@@ -91,26 +91,20 @@ def main(config):
         num_scripts = 1
 
     csv_file_paths = []
-
     ollama = initialize_ollama(use_ollama_host=args.use_ollama_host)
 
-    # Set API keys and configurations from the config object
     ngrok_api_key = config.get("ngrok", "api_key", fallback=None)
     ngrok_auth_token = config.get("ngrok", "auth_token", fallback=None)
     openai_api_key = config.get("openai", "api_key", fallback=None)
 
-    # Set the LLM and API options
     llm_choice = config.get("llm", "choice", fallback="ollama").lower()
     api_choice = config.get("api", "choice", fallback="openai").lower()
 
-    # Set the API key for OpenAI or other langchain tools based on the user's choice
     if api_choice == "openai":
         os.environ["OPENAI_API_KEY"] = openai_api_key
     elif api_choice == "ollama":
-        # Set OLLAMA API key here
         pass
     elif api_choice == "lmstudio":
-        # Set LMStudio API key here
         pass
 
     if not args.ranking or args.multiple:
@@ -119,10 +113,10 @@ def main(config):
         starting_index = max(existing_indices) + 1 if existing_indices else 0
 
         for i in range(starting_index, starting_index + num_scripts):
-            print(f"\nStarting script generation {i + 1} of {num_scripts} for the goal: '{overall_goal}'\n")
+            logger.info(f"Starting script generation {i + 1} of {num_scripts} for the goal: '{overall_goal}'")
 
             if args.verbose:
-                print("\nSending request to Ollama for agent data...\n")
+                logger.info("Sending request to Ollama for agent data...")
             response = get_agent_data(ollama, overall_goal, delimiter=',')
             if not response:
                 raise ValueError('No response from Ollama')
@@ -139,27 +133,27 @@ def main(config):
             crew_tasks = generate_crew_tasks(agents_data)
 
             write_crewai_script(agents_data, crew_tasks, crewai_script_path, args.use_ollama_host)
-            print(f"\nScript {i + 1} written to {crewai_script_path}\n")
+            logger.info(f"Script {i + 1} written to {crewai_script_path}")
 
             if args.auto_run:
-                print(f'\nAutomatically running script {i + 1}...\n')
+                logger.info(f'Automatically running script {i + 1}...')
                 os.system(f'python3 {crewai_script_path}')
 
     if args.ranking:
-        print("Sending ranking request to Ollama...\n")
+        logger.info("Sending ranking request to Ollama...")
         if not csv_file_paths and args.overall_goal:
             csv_file_paths = [f for f in os.listdir(os.getcwd()) if f.endswith('.csv') and args.overall_goal.replace(" ", "-") in f and any(greek_alpha in f for greek_alpha in greek_alphabets)]
 
         if csv_file_paths:
             ranked_crews, overall_summary = rank_crews(ollama, csv_file_paths, overall_goal, args.verbose)
-            print(overall_summary)
+            logger.info(overall_summary)
 
             import re
             top_crew_name_search = re.search(r'"(.+?)"', overall_summary)
             if top_crew_name_search:
                 top_crew_name = top_crew_name_search.group(1)
             else:
-                print("Error: Top-ranked crew name not found in the overall summary.")
+                logger.error("Top-ranked crew name not found in the overall summary.")
 
             if args.auto_run:
                 overall_goal_formatted = overall_goal.replace(" ", "-")
@@ -171,7 +165,14 @@ def main(config):
                         break
 
             if args.verbose:
-                print(f"\nTop-ranked crew: {top_crew_name}\n")
+                logger.info(f"Top-ranked crew: {top_crew_name}")
             if args.auto_run:
-                print(f'\nAutomatically running the top-ranked script: {top_script_path}\n')
+                logger.info(f'Automatically running the top-ranked script: {top_script_path}')
                 os.system(f'python3 {top_script_path}')
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as e:
+        logger.error(f"An error occurred: {e}")
+        traceback.print_exc()
