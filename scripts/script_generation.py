@@ -1,3 +1,5 @@
+# script_generation.py
+
 import os
 import subprocess
 import logging
@@ -9,6 +11,10 @@ from rank_crews import rank_crews
 
 # Setting up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+import re
+import traceback
+import argparse
+
 logger = logging.getLogger()
 
 def main(crew_tasks, overall_goal, csv_file_paths, args):
@@ -32,7 +38,6 @@ def main(crew_tasks, overall_goal, csv_file_paths, args):
             ranked_crews, overall_summary = rank_crews(ollama, csv_file_paths, overall_goal, args.verbose)
             logger.info(overall_summary)
 
-            import re
             top_crew_name_search = re.search(r'"(.+?)"', overall_summary)
             if top_crew_name_search:
                 top_crew_name = top_crew_name_search.group(1)
@@ -50,13 +55,13 @@ def main(crew_tasks, overall_goal, csv_file_paths, args):
 
             if args.verbose:
                 logger.info(f"Top-ranked crew: {top_crew_name}")
-            if args.auto_run:
-                logger.info(f'Automatically running the top-ranked script: {top_script_path}')
-                os.system(f'python3 {top_script_path}')
+            if __name__ == "__main__":
+                parser = argparse.ArgumentParser(description="Script generation script")
+                parser.add_argument("--some_argument", help="Description of the argument", type=str)
+                args = parser.parse_args()
 
-if __name__ == "__main__":
-    try:
-        main(crew_tasks, overall_goal, csv_file_paths, args)
-    except Exception as e:
-        logger.error(f"An error occurred: {e}")
-        traceback.print_exc()
+                try:
+                    main(args)
+                except Exception as e:
+                    logger.error(f"An error occurred: {e}")
+                    traceback.print_exc()

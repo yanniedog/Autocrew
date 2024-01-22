@@ -1,9 +1,11 @@
 # Filename: check_latest_version.py
 
 import requests
+from packaging import version
 
 def check_latest_version():
     try:
+        import autocrew_version  # Add the missing import statement
         response = requests.get('https://raw.githubusercontent.com/yanniedog/autocrew/main/autocrew.py')
         response.raise_for_status()
         script_content = response.text

@@ -3,6 +3,7 @@
 import csv
 import io
 import os
+import json
 
 def rank_crews(ollama, csv_file_paths, overall_goal, verbose=False):
     ranked_crews = []

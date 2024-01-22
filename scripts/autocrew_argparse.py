@@ -2,6 +2,8 @@
 
 import argparse
 from autocrew_core import main
+import logging
+import traceback
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='CrewAI Autocrew Script')
@@ -15,5 +17,9 @@ def parse_arguments():
     return parser.parse_args()
 
 if __name__ == "__main__":
-    args = parse_arguments()
-    main(args)
+    try:
+        main()
+    except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f"An error occurred: {e}")
+        traceback.print_exc()

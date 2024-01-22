@@ -1,3 +1,5 @@
+# agent_data.py
+
 import argparse
 import csv
 import io
@@ -26,14 +28,19 @@ from parse_csv_data import parse_csv_data
 from define_agent import define_agent
 from get_task_var_name import get_task_var_name
 from define_task import define_task
+from generate_crew_tasks import generate_crew_tasks
 
 # Setting up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger()
 
-autocrew_version = "1.3.2"
+autocrew_version = "1.3.3"
 
-def main(args):
+def main():
+    parser = argparse.ArgumentParser(description="Run the agent data script.")
+    parser.add_argument("--overall_goal", help="Specify the overall goal", type=str)
+    args = parser.parse_args()
+
     greek_alphabets = ["alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta", "iota", "kappa",
                        "lambda", "mu", "nu", "xi", "omicron", "pi", "rho", "sigma", "tau", "upsilon"]
     logger.info(f"Autocrew (v{autocrew_version}) for CrewAI")
@@ -47,10 +54,12 @@ def main(args):
         ollama_host = os.getenv('OLLAMA_HOST')
         logger.info(f"OLLAMA_HOST: {ollama_host}")
 
-    logger.info("To see the available command line parameters, type: python3 autocrew.py --help")
+    logger.info("To see the available command line parameters, type: python3 agent_data.py --help")
 
-    if args.overall_goal is None:
+    overall_goal = args.overall_goal
+    if overall_goal is None:
         overall_goal = input('\nPlease specify the overall goal: \n')
+
     else:
         overall_goal = args.overall_goal
 
@@ -89,7 +98,7 @@ def main(args):
 
 if __name__ == "__main__":
     try:
-        main(args)
+        main()
     except Exception as e:
         logger.error(f"An error occurred: {e}")
         traceback.print_exc()

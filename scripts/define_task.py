@@ -1,3 +1,4 @@
+from module_name import get_task_var_name
 # Filename: define_task.py
 
 def define_task(agent):
