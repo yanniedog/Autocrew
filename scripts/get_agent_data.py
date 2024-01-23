@@ -1,6 +1,6 @@
-# Filename: get_agent_data.py
+# get_agent_data.py
 
-def get_agent_data(ollama, overall_goal, delimiter):
+def invoke_ollama(ollama, overall_goal, delimiter):
     instruction = (
         f'Create a dataset in a CSV format with each field enclosed in double quotes, for a team of agents with the goal: "{overall_goal}". '
         f'Use the delimiter "{delimiter}" to separate the fields. '

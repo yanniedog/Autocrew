@@ -1,5 +1,5 @@
-from module_name import get_task_var_name
-# Filename: define_task.py
+# Corrected import statement
+from get_task_var_name import get_task_var_name
 
 def define_task(agent):
     task_var = get_task_var_name(agent['role'])

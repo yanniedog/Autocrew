@@ -1,3 +1,4 @@
+# get_ngrok_public_url.py
 import os
 import subprocess
 from pathlib import Path  
@@ -27,9 +28,17 @@ def get_auth_token():
         
 
 def run_ngrok_client(auth_token):
-    result = subprocess.run(['./ngrok-client.py', auth_token], capture_output=True, text=True) 
+    # Get the directory of the current script
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+
+    # Construct the path to ngrok-client.py
+    ngrok_client_path = os.path.join(dir_path, 'ngrok-client.py')
+
+    # Run the ngrok client with the Python interpreter
+    result = subprocess.run(['python3', ngrok_client_path, auth_token], capture_output=True, text=True)
     public_url = result.stdout
     return public_url
+
 
 def get_ngrok_public_url():
     config = get_config()  

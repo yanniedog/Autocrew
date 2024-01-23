@@ -1,55 +1,52 @@
 import os
-from pathlib import Path 
-import configparser
-from langchain_community.llms import Ollama
-from langchain_community.chat_models import ChatOpenAI
-from langchain.callbacks import CallbackManager, StreamingStdoutCallbackHandler
 import requests
-    
-CONFIG_PATH = os.path.join(Path.home(), "autocrew", "config.ini")   
+import configparser
+from pathlib import Path
+
+from langchain_community.llms import Ollama
+from get_ngrok_public_url import get_ngrok_public_url
+
+CONFIG_FILE = os.path.join(Path.home(), "autocrew", "config.ini")
 
 def get_config():
     config = configparser.ConfigParser()
-    try:
-        config.read(CONFIG_PATH)
-    except Exception as e: 
-        print(f"Error reading config file: {e}")
-        return None
-    
+    config.read(CONFIG_FILE)
     return config
 
+def validate_base_url(url):
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        return True
+    except: 
+        return False
+
 def initialize_ollama(model='openhermes', use_ollama_host=False):
-    config = get_config()  
-    api_key = None
-    
-    if config:
-        try:
-            api_key = config["openai"]["api_key"]  
-        except Exception as e:
-            print(f"Error getting OpenAI API key: {e}")
-    
-    callback_manager = CallbackManager([StreamingStdoutCallbackHandler()])
-    
+
+    base_url = "https://"
+
     if use_ollama_host:
-        if "OLLAMA_HOST" not in os.environ:
-            print("Error: OLLAMA_HOST env var not set")
+        custom_host = os.getenv('OLLAMA_HOST')
+        if not custom_host:
+            print("Error - OLLAMA_HOST not set")
+            return  
+
+        base_url += custom_host
+
+        if not validate_base_url(base_url):
+            print(f"Invalid URL: {base_url}")
             return
-        
-        base_url = os.environ["OLLAMA_HOST"]
-        try:
-            response = requests.get(base_url)
-            response.raise_for_status() 
-        except Exception as e:
-            print(f"Error validating OLLAMA_HOST URL: {e}")
-            return
-       
-        return Ollama(base_url=base_url, 
-                    model=model,  
-                    verbose=True,
-                    api_key=api_key,
-                    callback_manager=callback_manager)     
-    else:
-       return Ollama(model=model,
-                    verbose=True, 
-                    api_key=api_key,
-                    callback_manager=callback_manager)
+
+    if not use_ollama_host or not base_url:
+        ngrok_url = get_ngrok_public_url() 
+        base_url += ngrok_url
+
+    ollama = Ollama(base_url=base_url,
+                    model=model,
+                    verbose=True)
+    
+    return ollama
+
+if __name__ == "__main__":
+
+    ollama = initialize_ollama()

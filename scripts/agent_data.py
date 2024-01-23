@@ -12,8 +12,6 @@ from packaging import version
 from crewai import Agent, Crew, Process, Task
 from langchain_community.llms import Ollama
 from langchain_community.tools import DuckDuckGoSearchRun
-from langchain.callbacks.manager import CallbackManager
-from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 import logging
 from typing import Any, Dict, List
 import subprocess
@@ -21,8 +19,6 @@ import subprocess
 # Importing custom modules
 from get_ngrok_public_url import get_ngrok_public_url
 from initialize_ollama import initialize_ollama
-from get_agent_data import get_agent_data
-from get_next_crew_name import get_next_crew_name
 from save_csv_output import save_csv_output
 from parse_csv_data import parse_csv_data
 from define_agent import define_agent
@@ -34,11 +30,15 @@ from generate_crew_tasks import generate_crew_tasks
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger()
 
-autocrew_version = "1.3.3"
+autocrew_version = "1.3.4"
 
 def main():
-    parser = argparse.ArgumentParser(description="Run the agent data script.")
+    parser = argparse.ArgumentParser(description="Run the agent data script")
+    parser.add_argument("--use_ollama_host", help="Use Ollama host", action='store_true')
     parser.add_argument("--overall_goal", help="Specify the overall goal", type=str)
+    parser.add_argument("--multiple", help="Specify the number of scripts to generate", type=int, default=1)
+    parser.add_argument("--ranking", help="Specify the ranking", action='store_true')
+    parser.add_argument("--verbose", help="Enable verbose output", action='store_true')
     args = parser.parse_args()
 
     greek_alphabets = ["alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta", "iota", "kappa",
@@ -56,20 +56,13 @@ def main():
 
     logger.info("To see the available command line parameters, type: python3 agent_data.py --help")
 
-    overall_goal = args.overall_goal
-    if overall_goal is None:
-        overall_goal = input('\nPlease specify the overall goal: \n')
+    overall_goal = args.overall_goal or input('\nPlease specify the overall goal: \n')
 
-    else:
-        overall_goal = args.overall_goal
-
-    if args.multiple:
-        num_scripts = args.multiple
-    else:
-        num_scripts = 1
+    num_scripts = args.multiple
 
     csv_file_paths = []
-    ollama = initialize_ollama(use_ollama_host=args.use_ollama_host)
+    use_ollama_host = hasattr(args, 'use_ollama_host') and args.use_ollama_host
+    ollama = initialize_ollama(use_ollama_host=use_ollama_host)
 
     if not args.ranking or args.multiple:
         existing_csv_files = [f for f in os.listdir(os.getcwd()) if f.endswith('.csv') and overall_goal in f and any(greek_alpha in f for greek_alpha in greek_alphabets)]
@@ -96,9 +89,17 @@ def main():
 
             return crew_tasks, overall_goal, csv_file_paths, args
 
+def get_agent_data(ollama, overall_goal, delimiter):
+    instruction = (
+        f'Create a dataset in a CSV format with each field enclosed in double quotes, for a team of agents with the goal: "{overall_goal}". '
+        f'Use the delimiter "{delimiter}" to separate the fields. '
+        'Include columns "role", "goal", "backstory", "assigned_task", "allow_delegation". '
+        'Each agent\'s details should be in quotes to avoid confusion with the delimiter. '
+        'Provide a single-word role, individual goal, brief backstory, assigned task, and delegation ability (True/False) for each agent.'
+    )
+    response = ollama.invoke(instruction.format(overall_goal=overall_goal, delimiter=delimiter))
+    return response
+
 if __name__ == "__main__":
-    try:
-        main()
-    except Exception as e:
-        logger.error(f"An error occurred: {e}")
-        traceback.print_exc()
+    ollama = initialize_ollama()
+    main_agent_data(ollama)
