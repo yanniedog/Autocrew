@@ -1,3 +1,4 @@
+import configparser
 import subprocess
 import pkg_resources
 import sys
@@ -19,12 +20,10 @@ def check_and_install_dependencies():
 
 check_and_install_dependencies()
 
-# autocrew.py
-
 import os
 import sys
 from pathlib import Path
-import configparser
+
 import argparse
 import logging
 import traceback
@@ -33,8 +32,11 @@ import traceback
 scripts_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scripts")
 sys.path.append(scripts_path)
 
-from agent_data import main as main_agent_data
-from script_generation import main as main_script_generation
+# Set up logging to a file
+logging.basicConfig(filename='autocrew.log', level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+
+import agent_data
+import script_generation
 
 # Read the config file
 config = configparser.ConfigParser()
