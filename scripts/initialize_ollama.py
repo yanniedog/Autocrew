@@ -22,7 +22,6 @@ def validate_base_url(url):
         return False
 
 def initialize_ollama(model='openhermes', use_ollama_host=False):
-
     base_url = "https://"
 
     if use_ollama_host:
@@ -38,15 +37,16 @@ def initialize_ollama(model='openhermes', use_ollama_host=False):
             return
 
     if not use_ollama_host or not base_url:
-        ngrok_url = get_ngrok_public_url() 
-        base_url += ngrok_url
+        ngrok_url = get_ngrok_public_url()
+        if ngrok_url:
+            base_url += ngrok_url
+        else:
+            print("Error - Invalid or no ngrok URL provided")
+            return
 
-    ollama = Ollama(base_url=base_url,
-                    model=model,
-                    verbose=True)
+    ollama = Ollama(base_url=base_url, model=model, verbose=True)
     
     return ollama
 
 if __name__ == "__main__":
-
     ollama = initialize_ollama()

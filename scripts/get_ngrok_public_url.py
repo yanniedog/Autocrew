@@ -1,3 +1,4 @@
+
 # get_ngrok_public_url.py
 import os
 import subprocess
@@ -26,7 +27,6 @@ def get_auth_token():
         print("Auth token not found in config")
         return None
         
-
 def run_ngrok_client(auth_token):
     # Get the directory of the current script
     dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -36,9 +36,8 @@ def run_ngrok_client(auth_token):
 
     # Run the ngrok client with the Python interpreter
     result = subprocess.run(['python3', ngrok_client_path, auth_token], capture_output=True, text=True)
-    public_url = result.stdout
-    return public_url
-
+    public_url = result.stdout.strip()
+    return public_url if public_url.startswith('http') else None
 
 def get_ngrok_public_url():
     config = get_config()  
@@ -49,4 +48,6 @@ def get_ngrok_public_url():
         return
         
     url = run_ngrok_client(auth_token)
-    return url   
+    if not url:
+        print("Failed to obtain ngrok public URL")
+    return url

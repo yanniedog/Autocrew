@@ -1,3 +1,24 @@
+import subprocess
+import pkg_resources
+import sys
+
+def check_and_install_dependencies():
+    requirements_path = "/home/ai/autocrew/requirements.txt"  # Path to the requirements.txt file
+    with open(requirements_path, "r") as f:
+        required_packages = [line.strip() for line in f.readlines()]
+
+    for package in required_packages:
+        if not package or package.startswith('#'):
+            continue  # Skip empty lines or comments
+        try:
+            pkg_resources.require(package)
+        except pkg_resources.DistributionNotFound:
+            subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+        except pkg_resources.VersionConflict:
+            pass  # Handle version conflicts or consider upgrading the package
+
+check_and_install_dependencies()
+
 # autocrew.py
 
 import os
@@ -33,7 +54,7 @@ if __name__ == "__main__":
 
     try:
         crew_tasks, overall_goal, csv_file_paths, _ = main_agent_data()  # Remove the 'config' argument here
-        main_script_generation(crew_tasks, overall_goal, csv_file_paths, args)
+        # Rest of your script logic...
     except Exception as e:
         logger.error(f"An error occurred: {e}")
         traceback.print_exc()
