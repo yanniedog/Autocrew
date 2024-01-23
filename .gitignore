@@ -28,3 +28,5 @@ test_data
 ModelFile
 solar10-q5ks
 old-script.py
+config.ini
+*.pyc
