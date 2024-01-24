@@ -1,3 +1,4 @@
+# script_generation.py
 import os
 import subprocess
 import logging
@@ -13,6 +14,12 @@ from rank_crews import rank_crews
 # Setting up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger()
+
+def get_task_var_name(role):
+    return f'task_{role.replace(" ", "_").replace("-", "_").replace(".", "_")}'
+
+def generate_crew_tasks(agents_data):
+    return ', '.join([f'task_{agent["role"].replace(" ", "_").replace("-", "_").replace(".", "_")}' for agent in agents_data])
 
 def main(crew_tasks, overall_goal, csv_file_paths, args, ollama):
     for i, file_path in enumerate(csv_file_paths):
