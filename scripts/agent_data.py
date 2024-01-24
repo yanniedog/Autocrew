@@ -7,14 +7,15 @@ import json
 import os
 import requests
 import traceback
+import configparser
+import subprocess
+import logging
 from datetime import datetime
 from packaging import version
 from crewai import Agent, Crew, Process, Task
 from langchain_community.llms import Ollama
 from langchain_community.tools import DuckDuckGoSearchRun
-import logging
 from typing import Any, Dict, List
-import subprocess
 
 # Importing custom modules
 from get_ngrok_public_url import get_ngrok_public_url
@@ -22,30 +23,45 @@ from initialize_ollama import initialize_ollama
 from save_csv_output import save_csv_output
 from parse_csv_data import parse_csv_data
 from define_agent import define_agent
-from get_task_var_name import get_task_var_name
 from define_task import define_task
-from generate_crew_tasks import generate_crew_tasks
+from script_generation import generate_crew_tasks
+from get_agent_data import instruction
 
 # Setting up logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+import logging
+import os
 import configparser
+
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 logger = logging.getLogger()
 
-autocrew_version = "1.3.4.3"
+autocrew_version = "1.3.4.4"
 
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.expanduser("~"), "autocrew", "config.ini"))
 
+def get_task_var_name(role):
+    return f'task_{role.replace(" ", "_").replace("-", "_").replace(".", "_")}'
+
 def get_ngrok_public_url():
     try:
-        process = subprocess.run(['/bin/python3', '~/autocrew/scripts/ngrok-client.py'], capture_output=True, text=True)
+        # Correcting the path to ngrok-client.py
+        ngrok_client_script_path = os.path.expanduser('~/autocrew/scripts/ngrok-client.py')
+        process = subprocess.run(['/bin/python3', ngrok_client_script_path], capture_output=True, text=True)
         output = process.stdout.strip()
+        if not output.startswith("https://"):
+            raise ValueError("Invalid ngrok URL received")
         return output
     except Exception as e:
-        print(f"Error getting ngrok public URL: {e}")
+        logger.error(f"Error getting ngrok public URL: {e}")
         return None
+
 def main():
+    # Adding initial logging to confirm script execution
+    logger.info("Starting agent_data.py script")
+    logger.info(f"Autocrew (v{autocrew_version}) for CrewAI")
+    
     parser = argparse.ArgumentParser(description="Run the agent data script")
     parser.add_argument("--use_ollama_host", help="Use Ollama host", action='store_true')
     parser.add_argument("--overall_goal", help="Specify the overall goal", type=str)
@@ -54,10 +70,13 @@ def main():
     parser.add_argument("--verbose", help="Enable verbose output", action='store_true')
     args = parser.parse_args()
 
+    if not any(vars(args).values()):
+        logger.info("No arguments provided. Exiting script.")
+        return
+
     greek_alphabets = ["alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta", "iota", "kappa",
                        "lambda", "mu", "nu", "xi", "omicron", "pi", "rho", "sigma", "tau", "upsilon"]
-    logger.info(f"Autocrew (v{autocrew_version}) for CrewAI")
-
+    
     # Get the API key from the config.ini file
     api_key = config.get("openai", "api_key")
 
@@ -80,6 +99,7 @@ def main():
 
     csv_file_paths = []
     use_ollama_host = hasattr(args, 'use_ollama_host') and args.use_ollama_host
+    
     ollama = initialize_ollama(use_ollama_host=use_ollama_host)
 
     if not args.ranking or args.multiple:
@@ -106,35 +126,43 @@ def main():
             crew_tasks = generate_crew_tasks(agents_data)
 
             return crew_tasks, overall_goal, csv_file_paths, args
+    response = get_agent_data(ollama, overall_goal, delimiter=',', ngrok_url=ngrok_url, api_key=api_key)
+    if not response:
+        raise ValueError('No response from Ollama')
 
 
-import requests
+def get_agent_data(ollama, overall_goal, delimiter, ngrok_url, api_key):
+    logger.debug(f"Starting get_agent_data with arguments: {locals()}")
+    if not ngrok_url.startswith("https://"):
+        ngrok_url = "https://" + ngrok_url
 
-def get_agent_data(ollama, overall_goal, delimiter, ngrok_url=None, api_key=None):
-    if ngrok_url and api_key:
-        # Use the ngrok URL as the API endpoint and make an API call
-        url = f"{ngrok_url}/api/generate"
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {api_key}"
-        }
-        payload = {
-            "overall_goal": overall_goal,
-            "delimiter": delimiter
-        }
-        response = requests.post(url, headers=headers, json=payload)
+    api_endpoint = ngrok_url
+
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key}"
+    }
+    payload = {
+        "instruction": instruction,
+        "overall_goal": overall_goal,
+        "delimiter": delimiter
+    }
+
+    try:
+        logger.info(f"Sending request to Ollama: URL: {api_endpoint}, Headers: {headers}, Payload: {payload}")
+        response = requests.post(api_endpoint, headers=headers, json=payload)
+        
+        if response.status_code != 200:
+            logger.error(f"Ollama service responded with status code: {response.status_code}, Response: {response.text}")
+            raise Exception(f"Ollama service responded with status code: {response.status_code}")
+        else:
+            logger.info(f"Response from Ollama received: {response.text}")
         return response
-    else:
-        # Create a dataset instruction
-        instruction = (
-            f'Create a dataset in a CSV format with each field enclosed in double quotes, for a team of agents with the goal: "{overall_goal}". '
-            f'Use the delimiter "{delimiter}" to separate the fields. '
-            'Include columns "role", "goal", "backstory", "assigned_task", "allow_delegation". '
-            'Each agent\'s details should be in quotes to avoid confusion with the delimiter. '
-            'Provide a single-word role, individual goal, brief backstory, assigned task, and delegation ability (True/False) for each agent.'
-        )
-        response = ollama.invoke(instruction.format(overall_goal=overall_goal, delimiter=delimiter))
-        return response
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error in communicating with Ollama: {e}")
+        return None
+    finally:
+        logger.debug("Exiting get_agent_data")
 
 if __name__ == "__main__":
     main()

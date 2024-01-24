@@ -1,3 +1,4 @@
+import configparser
 import subprocess
 import pkg_resources
 import sys
@@ -22,7 +23,7 @@ check_and_install_dependencies()
 import os
 import sys
 from pathlib import Path
-import configparser
+
 import argparse
 import logging
 import traceback
@@ -31,8 +32,19 @@ import traceback
 scripts_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scripts")
 sys.path.append(scripts_path)
 
-# Set up logging to a file
-logging.basicConfig(filename='autocrew.log', level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+# Get the directory of the current script
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Set up logging to a file in the current directory and console
+logging.basicConfig(filename=os.path.join(current_dir, 'autocrew.log'), level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+
+# Create a console handler with the same log level and format
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.DEBUG)
+console_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+
+# Add the console handler to the root logger
+logging.getLogger().addHandler(console_handler)
 
 from agent_data import main as main_agent_data
 from script_generation import main as main_script_generation

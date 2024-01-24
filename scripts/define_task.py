@@ -1,5 +1,7 @@
-# Corrected import statement
-from get_task_var_name import get_task_var_name
+# define_task.py
+
+def get_task_var_name(role):
+    return f'task_{role.replace(" ", "_").replace("-", "_").replace(".", "_")}'
 
 def define_task(agent):
     task_var = get_task_var_name(agent['role'])

@@ -30,3 +30,4 @@ solar10-q5ks
 old-script.py
 config.ini
 *.pyc
+*.log
