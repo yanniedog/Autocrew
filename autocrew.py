@@ -1,4 +1,4 @@
-# Autocrew v2.0.0 (2024-01-26) 
+# Autocrew v2.0.1 (2024-01-26) 
 # https://github.com/yanniedog/autocrew
 
 import argparse
@@ -169,6 +169,8 @@ class AutoCrew:
         try:
             if self.llm_endpoint == 'ollama' and self.ollama:
                 response = self.ollama.invoke(instruction)
+                # Log the raw LLM output
+                logging.info(f"Raw LLM output (Ollama):\n{response}")
                 print(f"Number of tokens in the response: {self.count_tokens(response)}")
                 return response
             elif self.llm_endpoint == 'openai' and self.openai_api_key:
@@ -182,6 +184,8 @@ class AutoCrew:
                     max_tokens=self.openai_max_tokens
                 )
                 response = chat_completion.choices[0].message.content.strip()
+                # Log the raw LLM output
+                logging.info(f"Raw LLM output (OpenAI):\n{response}")
                 print(f"Number of tokens in the response: {self.count_tokens(response)}")
                 return response
             else:
@@ -219,9 +223,13 @@ class AutoCrew:
         return GREEK_ALPHABETS[next_index % len(GREEK_ALPHABETS)]
 
     def save_csv_output(self, response, overall_goal):
+        # Log the initial raw CSV data
+        logging.info(f"Initial raw CSV data:\n{response}")
+
         # Extract the CSV data between the ``` marks
         csv_data = response.split('```')[1] if '```' in response else response
         csv_data = csv_data.strip()
+        logging.info("Extracted CSV data from raw output.")
 
         # Define the correct header
         correct_header = ['crew_name', 'role', 'goal', 'backstory', 'assigned_task', 'allow_delegation']
@@ -236,12 +244,15 @@ class AutoCrew:
         for i, value in enumerate(header_values):
             if value != correct_header[i]:
                 header_values[i] = correct_header[i]
+                logging.info(f"Corrected header value: {value} to {correct_header[i]}")
 
         # Join the header values back into a string
         lines[0] = ','.join(header_values)
+        logging.info("Corrected header values and joined back into a string.")
 
         # Join the lines back into a string
         csv_data = '\n'.join(lines)
+        logging.info("Joined lines back into a single CSV string.")
 
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
         crew_name = self.get_next_crew_name(overall_goal)  # Correctly get the next crew name
@@ -251,40 +262,51 @@ class AutoCrew:
         if not os.path.exists(directory):
             os.makedirs(directory)
         file_path = os.path.join(directory, file_name)
-        lines = csv_data.split('\n')
         with open(file_path, 'w') as file:
             file.write(lines[0] + '\n')  # Write the header
             for line in lines[1:]:
                 if line.strip():
                     modified_line = f'"{crew_name}",{line}\n'
                     file.write(modified_line)
-        print(f"Script saved at: {file_path}")  # Print the full path of the saved file
+        logging.info(f"CSV file saved at: {file_path}")  # Log the path of the saved file
         return file_path
 
     def parse_csv_data(self, response, delimiter=',', filename=''):
+        # Log the raw CSV data before parsing
+        logging.info(f"Raw CSV data for parsing:\n{response}")
+
         header = ['role', 'goal', 'backstory', 'assigned_task', 'allow_delegation']
         agents_data = []
         csv_data = csv.reader(io.StringIO(response), delimiter=delimiter)
         lines = list(csv_data)
+
+        if not lines:
+            logging.error("CSV data is empty after splitting into lines.")
+            raise ValueError('CSV data is empty')
+
         header_line = lines[0]
         header_mapping = {h.lower(): h for h in header}
         header_indices = [header_mapping.get(h.lower()) for h in header_line]
-        if not header_indices:
-            raise ValueError('Header component missing in CSV data')
+
+        if not all(header_indices):
+            logging.error('Header component missing or incorrect in CSV data')
+            raise ValueError('Header component missing or incorrect in CSV data')
+
+        logging.info(f"Parsed header: {header_line}")
+
         for line in lines[1:]:
             agent_data = {}
             for i, value in enumerate(line):
                 header_name = header_indices[i]
                 if header_name:
-                    if header_name == 'assigned_task':
-                        value = value.replace(',', ' and ').replace('[', '').replace(']', '')
-                        agent_data[header_name] = value.strip()
-                    else:
-                        agent_data[header_name] = value.strip('"')
+                    agent_data[header_name] = value.strip('"').strip()
             if 'role' not in agent_data or not agent_data['role']:
+                logging.error('Role component missing in line of CSV data')
                 raise ValueError('Role component missing in CSV data')
-            agent_data['filename'] = filename  
+            agent_data['filename'] = filename
             agents_data.append(agent_data)
+
+        logging.info(f"Successfully parsed {len(agents_data)} agents from CSV data.")
         return agents_data
 
     def define_agent(self, agent, search_tool, llm):
