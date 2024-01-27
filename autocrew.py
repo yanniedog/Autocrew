@@ -360,7 +360,7 @@ class AutoCrew:
                 'from langchain_community.llms import Ollama\n'
                 'from langchain_community.tools import DuckDuckGoSearchRun\n'
                 'from crewai import Agent, Task, Crew, Process\n'
-                'import openai\n\n'
+                'from openai import OpenAI\n\n'
             )
 
             # Check and write LLM configuration based on settings
@@ -369,9 +369,10 @@ class AutoCrew:
                     file.write(f'ollama_host = "{self.ollama_host}"\n')  
                 file.write(f'ollama = Ollama(model="{self.llm_model_within_generated_scripts}", base_url=\'{self.ollama_host if self.add_ollama_host_url_to_crewai_scripts else ""}\')\n')
             elif self.llm_endpoint_within_generated_scripts == 'openai':
+                file.write(f'client = OpenAI()\n')
                 if self.add_api_keys_to_crewai_scripts:
                     file.write(f'os.environ["OPENAI_API_KEY"] = "{self.openai_api_key}"\n')
-                file.write(f'llm = openai.chatcompletion.create(model="{self.openai_model}")\n')
+                file.write(f'llm = client.chat.completions.create(model="{self.openai_model}")\n')
 
             # Other script content
             file.write('search_tool = DuckDuckGoSearchRun()\n\n')
@@ -400,7 +401,7 @@ class AutoCrew:
 
     
     def call_llm_with_retry(self, instruction, overall_goal, process_response_func):
-        max_attempts = 3
+        max_attempts = 10
         for attempt in range(max_attempts):
             logging.info(f"LLM call attempt {attempt + 1} for the goal: '{overall_goal}'")
             response = self.get_agent_data(instruction, ',')  # Assuming get_agent_data makes the actual LLM call
@@ -438,7 +439,7 @@ class AutoCrew:
         )
 
         attempt_number = 1  # Initialize attempt counter
-        max_attempts = 3
+        max_attempts = 10
         while attempt_number <= max_attempts:
             try:
                 logging.info(f"Attempt {attempt_number} for the goal: '{overall_goal}'")

@@ -11,3 +11,5 @@ packaging
 pyngrok
 requests
 tiktoken
+pandas
+pyarrow
