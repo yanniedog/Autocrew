@@ -4,3 +4,4 @@ autocrew.log
 *.csv
 scripts/*.*
 .vscode/*.*
+*.pyc
