@@ -51,16 +51,18 @@ def install_dependencies():
     if not pip_executable:
         raise EnvironmentError("pip is not available on the system.")
 
-    print("Installing dependencies...")
+    logging.info("Installing dependencies...")
+
     # Run the pip install command and capture the output
     result = subprocess.run([pip_executable, 'install', '-r', requirements_file], capture_output=True, text=True)
 
     # Check if the installation was successful
     if result.returncode != 0:
         # If there was an error, print the error message and raise an exception
-        print("Error occurred while installing dependencies:")
-        print(result.stdout)
-        print(result.stderr)
+        logging.error("Error occurred while installing dependencies:")
+        logging.error(result.stdout)
+        logging.error(result.stderr)
+
         raise RuntimeError("Failed to install dependencies.")
     else:
         print("Dependencies installed successfully.")
@@ -97,6 +99,11 @@ def initialize_logging(verbose=False, on_screen_logging_level='INFO', message=No
     if message:
         logger.info(message)
 
+    # Log the script version number
+    logger.info(f"AutoCrew version: {AUTOCREW_VERSION}")
+
+
+
 
 
 
@@ -111,11 +118,12 @@ class AutoCrew:
 
         # BASIC section
         self.llm_endpoint = self.config.get('BASIC', 'llm_endpoint', fallback=None)
-        self.llm_model = self.config.get('BASIC', 'llm_model', fallback=None)
+
+        # OLLAMA_CONFIG section
+        self.llm_model = self.config.get('OLLAMA_CONFIG', 'llm_model', fallback=None)
 
         # OPENAI_CONFIG section
         self.openai_model = self.config.get('OPENAI_CONFIG', 'openai_model', fallback=None)
-        self.openai_engine = self.config.get('OPENAI_CONFIG', 'openai_engine', fallback=None)
         try:
             self.openai_max_tokens = int(self.config.get('OPENAI_CONFIG', 'max_tokens', fallback=0))
             logging.debug(f"Loaded max_tokens from config: {self.openai_max_tokens}")
@@ -124,31 +132,38 @@ class AutoCrew:
             self.openai_max_tokens = 0
 
         # CREWAI_SCRIPTS section
-        self.llm_endpoint_within_generated_scripts = self.config['CREWAI_SCRIPTS']['llm_endpoint_within_generated_scripts']
-        self.llm_model_within_generated_scripts = self.config['CREWAI_SCRIPTS']['llm_model_within_generated_scripts']
-        self.add_api_keys_to_crewai_scripts = self.config['CREWAI_SCRIPTS']['add_api_keys_to_crewai_scripts'] == 'y'
-        self.add_ollama_host_url_to_crewai_scripts = self.config['CREWAI_SCRIPTS']['add_ollama_host_url_to_crewai_scripts'] == 'y'
+        self.llm_endpoint_within_generated_scripts = self.config.get('CREWAI_SCRIPTS', 'llm_endpoint_within_generated_scripts', fallback=None)
+        self.llm_model_within_generated_scripts = self.config.get('CREWAI_SCRIPTS', 'llm_model_within_generated_scripts', fallback=None)
+        self.add_api_keys_to_crewai_scripts = self.config.getboolean('CREWAI_SCRIPTS', 'add_api_keys_to_crewai_scripts', fallback=False)
+        self.add_ollama_host_url_to_crewai_scripts = self.config.getboolean('CREWAI_SCRIPTS', 'add_ollama_host_url_to_crewai_scripts', fallback=False)
 
         # AUTHENTICATORS section
-        self.openai_api_key = self.config['AUTHENTICATORS']['openai_api_key']
-        self.ngrok_auth_token = self.config['AUTHENTICATORS']['ngrok_auth_token']
-        self.ngrok_api_key = self.config['AUTHENTICATORS']['ngrok_api_key']
+        self.openai_api_key = self.config.get('AUTHENTICATORS', 'openai_api_key', fallback=None)
+        self.ngrok_auth_token = self.config.get('AUTHENTICATORS', 'ngrok_auth_token', fallback=None)
+        self.ngrok_api_key = self.config.get('AUTHENTICATORS', 'ngrok_api_key', fallback=None)
 
         # REMOTE_HOST_CONFIG section
-        self.reset_ollama_host_on_startup = self.config['REMOTE_HOST_CONFIG']['reset_ollama_host_on_startup'] == 'y'
-        self.use_remote_ollama_host = self.config['REMOTE_HOST_CONFIG']['use_remote_ollama_host'] == 'y'
-        self.name_of_remote_ollama_host = self.config['REMOTE_HOST_CONFIG']['name_of_remote_ollama_host']
+        self.reset_ollama_host_on_startup = self.config.getboolean('REMOTE_HOST_CONFIG', 'reset_ollama_host_on_startup', fallback=False)
+        self.use_remote_ollama_host = self.config.getboolean('REMOTE_HOST_CONFIG', 'use_remote_ollama_host', fallback=False)
+        self.name_of_remote_ollama_host = self.config.get('REMOTE_HOST_CONFIG', 'name_of_remote_ollama_host', fallback=None)
+
+        # MISCELLANEOUS section
+        self.on_screen_logging_level = self.config.get('MISCELLANEOUS', 'on_screen_logging_level', fallback='INFO')
+
+        # Set a default value for ollama_host
+        self.ollama_host = "http://localhost:11434"  # Default value
 
         # Initialize other components
-        self.ollama = self.initialize_ollama()  # Always initialize the Ollama instance
+        self.ollama = self.initialize_ollama() if self.llm_endpoint == 'ollama' else None
+        # self.openai = self.initialize_openai() if self.llm_endpoint == 'openai' else None  (this is not needed, as openai does not need to be initalised like Ollama)
 
         
     def countdown_timer(seconds: int):
         """Displays a countdown timer for the specified number of seconds."""
         for i in range(seconds, 0, -1):
-            print(f"Pausing for {i} seconds")
+            logging.info(f"Pausing for {i} seconds")
             time.sleep(1)
-        print("Continuing...") 
+        logging.info("Continuing...")
 
     def initialize_ollama(self):
         connection_type = "remote" if self.use_remote_ollama_host else "local"
@@ -197,8 +212,8 @@ class AutoCrew:
             llm_name = f"Ollama using model {model}"
         else:
             connection_type = "remote"
-            model = self.openai_engine
-            llm_name = f"OpenAI using engine {model}"
+            model = self.openai_model
+            llm_name = f"OpenAI using model {model}"
 
         logging.info(f"Initializing {connection_type} connection to {llm_name} for generating agent data with the overall goal of '{overall_goal}'...")
         
@@ -240,7 +255,7 @@ class AutoCrew:
             elif self.llm_endpoint == 'openai' and self.openai_api_key:
                 client = OpenAI(api_key=self.openai_api_key)
                 chat_completion = client.chat.completions.create(
-                    model=self.openai_model,
+                    model=self.openai_model,  # Use the model directly from the configuration
                     messages=[
                         {"role": "system", "content": "You are a helpful assistant."},
                         {"role": "user", "content": instruction}
@@ -258,6 +273,7 @@ class AutoCrew:
         except Exception as e:
             logging.error(f"Error in API call: {e}")
             return ""
+
 
 
 
@@ -412,7 +428,6 @@ class AutoCrew:
 
     def write_crewai_script(self, agents_data, crew_tasks, file_name):
         # Implementation to handle agents_data, crew_tasks, and file_name
-        pass
         crew_agents = ', '.join([agent['role'].replace(' ', '_').replace('-', '_').replace('.', '_') for agent in agents_data])
         with open(os.path.join("scripts", file_name), 'w') as file:
             # Script header and imports
@@ -428,18 +443,18 @@ class AutoCrew:
             if self.llm_endpoint_within_generated_scripts == 'ollama':
                 if self.add_ollama_host_url_to_crewai_scripts:
                     file.write(f'ollama_host = "{self.ollama_host}"\n')  
-                file.write(f'ollama = Ollama(model="{self.llm_model_within_generated_scripts}", base_url=\'{self.ollama_host if self.add_ollama_host_url_to_crewai_scripts else ""}\')\n')
+                file.write(f'ollama = Ollama(model="{self.llm_model_within_generated_scripts}", base_url=ollama_host)\n')
             elif self.llm_endpoint_within_generated_scripts == 'openai':
                 if self.add_api_keys_to_crewai_scripts:
                     file.write(f'os.environ["OPENAI_API_KEY"] = "{self.openai_api_key}"\n')
-                file.write(f'llm = openai.chatcompletion.create(model="{self.openai_model}")\n')
+                file.write(f'llm = openai.ChatCompletion.create(model="{self.openai_model}")\n')
 
             # Other script content
             file.write('search_tool = DuckDuckGoSearchRun()\n\n')
 
             # Define agents and their tasks
             for agent in agents_data:
-                agent_var = self.define_agent(agent, "search_tool", 'ollama' if self.llm_endpoint_within_generated_scripts == 'ollama' else 'openai')
+                agent_var = self.define_agent(agent, "search_tool", 'ollama' if self.llm_endpoint_within_generated_scripts == 'ollama' else 'llm')
                 file.write(agent_var + '\n')
                 task_var = self.define_task(agent)
                 file.write(task_var + '\n')
@@ -453,11 +468,11 @@ class AutoCrew:
                 '    verbose=True,\n'
                 '    process=Process.sequential,\n'
                 ')\n\n'
-                '# Kickoff the crew tasks\n'
                 'result = crew.kickoff()\n\n'
-                '# Handle the "result" as needed\n'
             )
-        print(f"Script saved at: {os.path.join('scripts', file_name)}")  # Print the full path of the saved file
+        logging.info(f"Script saved at: {os.path.join('scripts', file_name)}")  # Log the full path of the saved file
+
+
 
     
     def call_llm_with_retry(self, instruction, overall_goal, process_response_func):
@@ -635,8 +650,8 @@ class AutoCrew:
             writer.writerow(["crew_name", "ranking"])
             for crew_name, ranking in ranked_crews:
                 writer.writerow([crew_name, ranking])
-        print(f"Ranking CSV saved at: {file_path}")  # Print the full path of the saved ranking CSV
-    
+        logging.info(f"Ranking CSV saved at: {file_path}")  # Log the full path of the saved ranking CSV
+
     def log_config_with_redacted_api_keys(self):
         redacted_config = configparser.ConfigParser()
         for section in self.config.sections():
@@ -668,6 +683,25 @@ class AutoCrew:
     
 
 def main():
+    # Global exception handler
+    def handle_exception(exc_type, exc_value, exc_traceback):
+        if issubclass(exc_type, KeyboardInterrupt):
+            # Call the default KeyboardInterrupt handler
+            sys.__excepthook__(exc_type, exc_value, exc_traceback)
+            return
+        logging.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
+
+    # Set the global exception handler
+    sys.excepthook = handle_exception
+
+    # Parse command line arguments for verbosity first
+    parser = argparse.ArgumentParser(description='CrewAI Autocrew Script')
+    parser.add_argument('-v', '--verbose', action='store_true', help='Provide additional details during execution')
+    args, remaining_argv = parser.parse_known_args()
+
+    # Initialize logging with the appropriate verbosity level
+    initialize_logging(verbose=args.verbose)
+
     # Define the message to be displayed and logged
     startup_message = (
         f"\nAutocrew version: {AUTOCREW_VERSION}\n"
@@ -679,17 +713,15 @@ def main():
         "\n"
     )
 
-    # Print the message to the console before any other output
-    print(startup_message)
+    # Log the startup message
+    logging.info(startup_message)
 
-    # Parse command line arguments
-    parser = argparse.ArgumentParser(description='CrewAI Autocrew Script')
+    # Continue parsing the remaining command line arguments
     parser.add_argument('overall_goal', nargs='?', type=str, help='The overall goal for the crew')
     parser.add_argument('-m', '--multiple', type=int, nargs='?', const=-1, default=None, metavar='NUM', help='Create NUM number of CrewAI scripts for the same overall goal. Example: -m 3')
     parser.add_argument('-r', '--rank', action='store_true', help='Rank the generated crews if multiple scripts are created')
     parser.add_argument('-a', '--auto_run', action='store_true', help='Automatically run the scripts after generation')
-    parser.add_argument('-v', '--verbose', action='store_true', help='Provide additional details during execution')
-    args = parser.parse_args()
+    args = parser.parse_args(remaining_argv)
 
     if args.overall_goal is None:
         args.overall_goal = input("Please set the overall goal for your crew: ")
@@ -701,17 +733,11 @@ def main():
                 if args.multiple > 0:
                     break
                 else:
-                    print("Please enter a positive integer.")
+                    logging.info("Please enter a positive integer.")
             except ValueError:
-                print("Invalid input. Please enter a valid number.")
+                logging.error("Invalid input. Please enter a valid number.")
 
     autocrew = AutoCrew()
-
-    # Get on_screen_logging_level from config file
-    on_screen_logging_level = autocrew.config.get('MISCELLANEOUS', 'on_screen_logging_level', fallback='INFO')
-
-    # Initialize logging with the appropriate verbosity level
-    initialize_logging(args.verbose, on_screen_logging_level)
 
     # Log the redacted config.ini content
     autocrew.log_config_with_redacted_api_keys()
@@ -721,8 +747,7 @@ def main():
             csv_file_paths = autocrew.generate_scripts(args.overall_goal, args.multiple)
             if args.rank:
                 ranked_crews, overall_summary = autocrew.rank_crews(csv_file_paths, args.overall_goal, args.verbose)
-                print(f"\nRanking prompt:\n{overall_summary}\n")
-                logging.info(overall_summary)
+                logging.info(f"\nRanking prompt:\n{overall_summary}\n")
                 autocrew.save_ranking_output(ranked_crews, args.overall_goal)
             if args.auto_run:
                 for path in csv_file_paths:
@@ -731,15 +756,14 @@ def main():
         elif args.rank:
             csv_file_paths = autocrew.get_existing_scripts(args.overall_goal)
             ranked_crews, overall_summary = autocrew.rank_crews(csv_file_paths, args.overall_goal, args.verbose)
-            print(f"\nRanking prompt:\n{overall_summary}\n")
-            logging.info(overall_summary)
+            logging.info(f"\nRanking prompt:\n{overall_summary}\n")
             autocrew.save_ranking_output(ranked_crews, args.overall_goal)
             if args.auto_run:
                 subprocess.run([sys.executable, ranked_crews[0][0]])
         else:
             autocrew.run(args.overall_goal, None, args.auto_run, args.verbose)
-    except ValueError as e:
-        print(f"Error: {e}")
+    except Exception as e:
+        logging.exception("An error occurred during script execution.")
         sys.exit(1)
 
 if __name__ == '__main__':
