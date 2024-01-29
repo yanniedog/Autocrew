@@ -1,13 +1,7 @@
-# filename: requirements.txt
-
-configparser
 crewai>=0.1.32
-langchain-community>=0.0.1
-ollama
-openai
-packaging>=20.9
-pandas
-pyarrow
-pyngrok
-requests>=2.25.1
-tiktoken
+langchain>=0.1.4
+langchain_community>=0.0.16
+openai>=1.10.0
+packaging>=23.2
+Requests>=2.31.0
+tiktoken>=0.5.2

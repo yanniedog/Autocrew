@@ -100,15 +100,25 @@ def install_dependencies():
 
     logging.info("Installing dependencies...")
 
-    result = subprocess.run([pip_executable, 'install', '-r', requirements_file], capture_output=True, text=True)
+    try:
+        with open(requirements_file, 'r') as file:
+            logging.info(f"Contents of {requirements_file}:")
+            logging.info(file.read())
 
-    if result.returncode != 0:
-        logging.error("Error occurred while installing dependencies:")
-        logging.error(result.stdout)
-        logging.error(result.stderr)
-        raise RuntimeError("Failed to install dependencies.")
-    else:
-        logging.info("Dependencies installed successfully.")
+        logging.info(f"Executing: {pip_executable} install -r {requirements_file}")
+        subprocess.check_call([pip_executable, 'install', '-r', requirements_file])
+
+    except subprocess.CalledProcessError as e:
+        logging.error("Error occurred while installing dependencies.")
+        raise e
+    except Exception as e:
+        logging.error("An unexpected error occurred:")
+        logging.error(str(e))
+        raise
+
+    logging.info("Dependencies installed successfully.")
+
+
 
 
 def handle_exception(exc_type, exc_value, exc_traceback):
@@ -243,6 +253,7 @@ def main():
 
     # Initialize logging first
     initialize_logging(verbose=args.verbose)
+    install_dependencies()
     # Then log the command-line arguments
     log_command_line_arguments()
 
