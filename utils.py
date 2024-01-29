@@ -28,11 +28,16 @@ def count_tokens(string: str) -> int:
 
 def get_next_crew_name(overall_goal, script_directory="scripts"):
     """Determines the next crew name based on existing files."""
+    directory = os.path.join(os.getcwd(), script_directory)
+    if not os.path.exists(directory):
+        os.makedirs(directory)  # Create the directory if it doesn't exist
+
     formatted_goal = overall_goal.replace(" ", "-")
-    existing_files = [f for f in os.listdir(script_directory) if (f.endswith('.csv') or f.endswith('.py')) and formatted_goal in f]
+    existing_files = [f for f in os.listdir(directory) if (f.endswith('.csv') or f.endswith('.py')) and formatted_goal in f]
     existing_indices = [GREEK_ALPHABETS.index(f.split('-')[-1].split('.')[0]) for f in existing_files if f.split('-')[-1].split('.')[0] in GREEK_ALPHABETS]
     next_index = (max(existing_indices) + 1) % len(GREEK_ALPHABETS) if existing_indices else 0
     return GREEK_ALPHABETS[next_index]
+
 
 def parse_csv_data(response, delimiter=',', filename=''):
     """Parses CSV data from a string response."""
