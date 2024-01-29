@@ -142,7 +142,8 @@ def check_latest_version():
 
         if version.parse(latest_version) > version.parse(AUTOCREW_VERSION):
             print(f"An updated version of AutoCrew is available: {latest_version}")
-            print("You can upgrade to the latest version by running the script with the -upgrade parameter.")
+            print("Before upgrading, please ensure you have backed up your entire 'autocrew' directory (including subdirectories).")
+            print("You can upgrade to the latest version by running the script with the -u or --upgrade parameter.")
             return latest_version
         else:
             print("You are running the latest version of AutoCrew.")
@@ -150,6 +151,7 @@ def check_latest_version():
     except Exception as e:
         print(f"Error checking for the latest version: {e}")
         return None
+
 
     
 def upgrade_autocrew(latest_version):
@@ -182,13 +184,14 @@ def upgrade_autocrew(latest_version):
         if os.path.isfile(source_path) and filename != 'config.ini':
             shutil.copyfile(source_path, filename)
 
-    # Merge the configuration from the backup into the new config.ini
     print("Updating the config.ini file with your previous settings...")
     config = configparser.ConfigParser()
     config.read(os.path.join(update_dir, 'config.ini'))
     config_backup = configparser.ConfigParser()
     config_backup.read(config_backup_path)
     for section in config_backup.sections():
+        if not config.has_section(section):
+            config.add_section(section)  # Add the missing section
         for key, value in config_backup.items(section):
             config.set(section, key, value)
     with open('config.ini', 'w') as configfile:
@@ -221,7 +224,7 @@ def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='CrewAI Autocrew Script', add_help=False)
     parser.add_argument('-v', '--verbose', action='store_true', help='Provide additional details during execution')
-    parser.add_argument('-upgrade', action='store_true', help='Upgrade to the latest version of AutoCrew')
+    parser.add_argument('-u', '--upgrade', action='store_true', help='Upgrade to the latest version of AutoCrew (ensure you have backed up your entire autocrew directory, and any subdirectories within it, beforehand)')  # Updated help info
     parser.add_argument('-h', '-?', '--help', action='store_true', help='Show this help message and exit')
     parser.add_argument('overall_goal', nargs='?', type=str, help='The overall goal for the crew')
     parser.add_argument('-r', '--rank', action='store_true', help='Rank the generated crews if multiple scripts are created')
@@ -232,7 +235,7 @@ def main():
     if args.upgrade or args.help:
         if unknown_args:  # If there are other arguments
             parser.print_usage()
-            print(f"Error: The '-upgrade' and '-h/-?/--help' options cannot be used with other arguments.")
+            print(f"Error: The '-u/--upgrade' and '-h/-?/--help' options cannot be used with other arguments.")
             sys.exit(1)
         elif args.upgrade:
             latest_version = check_latest_version()

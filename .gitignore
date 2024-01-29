@@ -9,3 +9,4 @@ autocrew.log
 config.ini
 scripts/*.*
 .vscode/*.*
+autocrew_update/
