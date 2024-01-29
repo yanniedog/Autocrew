@@ -45,7 +45,37 @@ from openai import OpenAI
 GREEK_ALPHABETS = ["alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta", "iota", "kappa",
                        "lambda", "mu", "nu", "xi", "omicron", "pi", "rho", "sigma", "tau", "upsilon"]
 
+def initialize_logging(verbose=False, on_screen_logging_level='INFO', message=None):
+    log_file = os.path.join(os.getcwd(), 'autocrew.log')
 
+    # File Handler Configuration
+    file_handler = logging.FileHandler(log_file, mode='w')
+    file_handler.setLevel(logging.DEBUG)
+    file_formatter = logging.Formatter('%(asctime)s - %(levelname)s - (%(filename)s,%(funcName)s,%(lineno)d) - %(message)s')
+    file_handler.setFormatter(file_formatter)
+
+    # Console Handler Configuration
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(getattr(logging, on_screen_logging_level.upper(), logging.INFO))
+    console_formatter = logging.Formatter('%(message)s')
+    console_handler.setFormatter(console_formatter)
+
+    # Logger Configuration
+    logger = logging.getLogger()
+    logger.setLevel(logging.DEBUG)
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
+
+    # Log the initial message and script version number
+    if message:
+        logger.info(message)
+
+    # If verbose flag is set, update the console handler to log DEBUG messages
+    if verbose:
+        console_handler.setLevel(logging.DEBUG)
+
+# Call the initialize_logging function at the start of the script
+initialize_logging()        
 
 def install_dependencies():
     # Check if 'requirements.txt' exists in the current working directory
@@ -75,34 +105,7 @@ def install_dependencies():
         print("Dependencies installed successfully.")
 
     
-def initialize_logging(verbose=False, on_screen_logging_level='INFO', message=None):
-    log_file = os.path.join(os.getcwd(), 'autocrew.log')
 
-    # File Handler Configuration
-    file_handler = logging.FileHandler(log_file, mode='w')
-    file_handler.setLevel(logging.DEBUG)
-    file_formatter = logging.Formatter('%(asctime)s - %(levelname)s - (%(filename)s,%(funcName)s,%(lineno)d) - %(message)s')
-    file_handler.setFormatter(file_formatter)
-
-    # Console Handler Configuration
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setLevel(getattr(logging, on_screen_logging_level.upper(), logging.INFO))
-    console_formatter = logging.Formatter('%(message)s')
-    console_handler.setFormatter(console_formatter)
-
-    # Logger Configuration
-    logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG)
-    logger.addHandler(file_handler)
-    logger.addHandler(console_handler)
-
-    # Log the initial message and script version number
-    if message:
-        logger.info(message)
-
-    # If verbose flag is set, update the console handler to log DEBUG messages
-    if verbose:
-        console_handler.setLevel(logging.DEBUG)
 
 
 
@@ -152,8 +155,6 @@ def check_latest_version():
         print(f"Error checking for the latest version: {e}")
         return None
 
-
-    
 def upgrade_autocrew(latest_version):
     # Create a hidden backup directory if it doesn't exist
     backup_dir = '.backup'
@@ -166,25 +167,31 @@ def upgrade_autocrew(latest_version):
     logfile_backup_path = os.path.join(backup_dir, logfile_backup_name)
     if os.path.exists(logfile_path):
         shutil.copyfile(logfile_path, logfile_backup_path)
-        print(f"Backing up the current logfile to {logfile_backup_path}...")
+        logging.info(f"Backing up the current logfile to {logfile_backup_path}...")
 
     # Perform a backup of the current config.ini file
     config_backup_path = os.path.join(backup_dir, 'config_backup.ini')
     shutil.copyfile('config.ini', config_backup_path)
-    print("Backing up the current config.ini file...")
+    logging.info("Backing up the current config.ini file...")
 
+    # Remove the existing 'autocrew_update' directory if it exists
+    update_dir = 'autocrew_update'
+    if os.path.exists(update_dir):
+        shutil.rmtree(update_dir)
+    
     # Clone the repository (you may want to specify a temporary directory)
-    print("Cloning the latest version from GitHub...")
-    subprocess.run(['git', 'clone', 'https://github.com/yanniedog/autocrew.git', 'autocrew_update'])
+    logging.info("Cloning the latest version from GitHub...")
+    subprocess.run(['git', 'clone', 'https://github.com/yanniedog/autocrew.git', update_dir])
 
     # Copy the new autocrew.py and other files, excluding config.ini
-    update_dir = 'autocrew_update'
     for filename in os.listdir(update_dir):
         source_path = os.path.join(update_dir, filename)
         if os.path.isfile(source_path) and filename != 'config.ini':
             shutil.copyfile(source_path, filename)
+            logging.info(f"Copied {filename} to the current directory.")
 
-    print("Updating the config.ini file with your previous settings...")
+    # Merge the configuration from the backup into the new config.ini
+    logging.info("Updating the config.ini file with your previous settings...")
     config = configparser.ConfigParser()
     config.read(os.path.join(update_dir, 'config.ini'))
     config_backup = configparser.ConfigParser()
@@ -199,10 +206,12 @@ def upgrade_autocrew(latest_version):
 
     # Clean up: remove the update directory
     shutil.rmtree(update_dir)
-    print("Update complete. Restarting the script...")
+    logging.info("Cleaned up the update directory.")
 
-    # Restart the script using a subprocess
-    os.execv(sys.executable, ['python'] + sys.argv)
+    # Print the success message and exit
+    logging.info(f"Upgrade successful. AutoCrew has been updated from version {AUTOCREW_VERSION} to version {latest_version}.")
+    print(f"Upgrade successful. AutoCrew has been updated from version {AUTOCREW_VERSION} to version {latest_version}.")
+    sys.exit(0)
     
 def main():
     # Set the global exception handler
