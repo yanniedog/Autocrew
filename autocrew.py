@@ -45,37 +45,39 @@ from openai import OpenAI
 GREEK_ALPHABETS = ["alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta", "iota", "kappa",
                        "lambda", "mu", "nu", "xi", "omicron", "pi", "rho", "sigma", "tau", "upsilon"]
 
-def initialize_logging(verbose=False, on_screen_logging_level='INFO', message=None):
+def initialize_logging(verbose=False):
     log_file = os.path.join(os.getcwd(), 'autocrew.log')
+    config_file = os.path.join(os.getcwd(), 'config.ini')
+    config = configparser.ConfigParser()
+    config.read(config_file)
 
-    # File Handler Configuration
+    console_logging_level = logging.INFO
+
+    if not verbose and config.has_option('MISCELLANEOUS', 'on_screen_logging_level'):
+        config_level = config.get('MISCELLANEOUS', 'on_screen_logging_level').upper()
+        console_logging_level = getattr(logging, config_level, logging.INFO)
+
+    if verbose:
+        console_logging_level = logging.DEBUG
+
+    logger = logging.getLogger()
+    logger.setLevel(logging.DEBUG)
+
+    if logger.hasHandlers():
+        logger.handlers.clear()
+
     file_handler = logging.FileHandler(log_file, mode='w')
     file_handler.setLevel(logging.DEBUG)
     file_formatter = logging.Formatter('%(asctime)s - %(levelname)s - (%(filename)s,%(funcName)s,%(lineno)d) - %(message)s')
     file_handler.setFormatter(file_formatter)
+    logger.addHandler(file_handler)
 
-    # Console Handler Configuration
     console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setLevel(getattr(logging, on_screen_logging_level.upper(), logging.INFO))
+    console_handler.setLevel(console_logging_level)
     console_formatter = logging.Formatter('%(message)s')
     console_handler.setFormatter(console_formatter)
-
-    # Logger Configuration
-    logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG)
-    logger.addHandler(file_handler)
     logger.addHandler(console_handler)
 
-    # Log the initial message and script version number
-    if message:
-        logger.info(message)
-
-    # If verbose flag is set, update the console handler to log DEBUG messages
-    if verbose:
-        console_handler.setLevel(logging.DEBUG)
-
-# Call the initialize_logging function at the start of the script
-initialize_logging()        
 
 def install_dependencies():
     # Check if 'requirements.txt' exists in the current working directory
@@ -105,11 +107,6 @@ def install_dependencies():
         print("Dependencies installed successfully.")
 
     
-
-
-
-
-
 
 
 
@@ -214,13 +211,21 @@ def upgrade_autocrew(latest_version):
     sys.exit(0)
     
 def main():
-    # Set the global exception handler
+    parser = argparse.ArgumentParser(description='CrewAI Autocrew Script', add_help=False)
+    parser.add_argument('-v', '--verbose', action='store_true', help='Provide additional details during execution')
+    parser.add_argument('-u', '--upgrade', action='store_true', help='Upgrade to the latest version of AutoCrew (ensure you have backed up your entire autocrew directory, and any subdirectories within it, beforehand)')
+    parser.add_argument('-h', '-?', '--help', action='store_true', help='Show this help message and exit')
+    parser.add_argument('overall_goal', nargs='?', type=str, help='The overall goal for the crew')
+    parser.add_argument('-r', '--rank', action='store_true', help='Rank the generated crews if multiple scripts are created')
+    parser.add_argument('-a', '--auto_run', action='store_true', help='Automatically run the scripts after generation')
+    args, unknown_args = parser.parse_known_args()
+
+    initialize_logging(verbose=args.verbose)
+
     sys.excepthook = handle_exception
 
-    # Initialize logging with the default verbosity level and initial message
     startup_message = (
         f"\nAutoCrew version: {AUTOCREW_VERSION}\n"
-        "\n"
         "Settings can be modified within \"config.ini\"\n"
         "Generated scripts are saved in the \"scripts\" subdirectory\n"
         "If you experience any errors, please create an issue on Github and attach \"autocrew.log\":\n"
@@ -228,21 +233,12 @@ def main():
         "\n"
         "Use the -? or -h command line options to display help information.\n"
     )
-    initialize_logging(verbose=False, on_screen_logging_level='INFO', message=startup_message)
+    logging.info(startup_message)
 
-    # Parse command line arguments
-    parser = argparse.ArgumentParser(description='CrewAI Autocrew Script', add_help=False)
-    parser.add_argument('-v', '--verbose', action='store_true', help='Provide additional details during execution')
-    parser.add_argument('-u', '--upgrade', action='store_true', help='Upgrade to the latest version of AutoCrew (ensure you have backed up your entire autocrew directory, and any subdirectories within it, beforehand)')  # Updated help info
-    parser.add_argument('-h', '-?', '--help', action='store_true', help='Show this help message and exit')
-    parser.add_argument('overall_goal', nargs='?', type=str, help='The overall goal for the crew')
-    parser.add_argument('-r', '--rank', action='store_true', help='Rank the generated crews if multiple scripts are created')
-    parser.add_argument('-a', '--auto_run', action='store_true', help='Automatically run the scripts after generation')
-    args, unknown_args = parser.parse_known_args()
+    check_latest_version()
 
-    # Check if -upgrade or -h/-?/--help is used with other parameters
     if args.upgrade or args.help:
-        if unknown_args:  # If there are other arguments
+        if unknown_args:
             parser.print_usage()
             print(f"Error: The '-u/--upgrade' and '-h/-?/--help' options cannot be used with other arguments.")
             sys.exit(1)
@@ -257,21 +253,11 @@ def main():
             parser.print_help()
             sys.exit(0)
 
-    # Check for the latest version and inform the user about the upgrade option
-    check_latest_version()
-
-    # Update the logger's level if verbose flag is set
-    if args.verbose:
-        for handler in logging.getLogger().handlers:
-            if isinstance(handler, logging.StreamHandler):
-                handler.setLevel(logging.DEBUG)
-
     if args.overall_goal is None:
         args.overall_goal = input("Please set the overall goal for your crew: ")
 
     autocrew = AutoCrew()
 
-    # Log the redacted config.ini content
     autocrew.log_config_with_redacted_api_keys()
     
     try:
@@ -283,8 +269,8 @@ def main():
                 autocrew.save_ranking_output(ranked_crews, args.overall_goal)
             if args.auto_run:
                 for path in csv_file_paths:
-                    script_path = path.replace('.csv', '.py')  # Change the file extension to .py
-                    subprocess.run([sys.executable, script_path])  # Using sys.executable
+                    script_path = path.replace('.csv', '.py')
+                    subprocess.run([sys.executable, script_path])
         elif args.rank:
             csv_file_paths = autocrew.get_existing_scripts(args.overall_goal)
             ranked_crews, overall_summary = autocrew.rank_crews(csv_file_paths, args.overall_goal, args.verbose)
@@ -300,3 +286,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
