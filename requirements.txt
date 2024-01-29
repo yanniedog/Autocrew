@@ -1,15 +1,13 @@
-requests>=2.25.1
-langchain-community>=0.0.1
-crewai>=0.1.32
-packaging>=20.9
+# filename: requirements.txt
+
 configparser
-crewai
-langchain_community
+crewai>=0.1.32
+langchain-community>=0.0.1
 ollama
 openai
-packaging
-pyngrok
-requests
-tiktoken
+packaging>=20.9
 pandas
 pyarrow
+pyngrok
+requests>=2.25.1
+tiktoken

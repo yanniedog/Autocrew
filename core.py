@@ -1,3 +1,5 @@
+# filename: core.py
+
 import configparser
 import copy
 import csv

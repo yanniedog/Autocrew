@@ -1,7 +1,9 @@
-
-config.ini
-autocrew.log
+*.bak
 *.csv
+*.pyc
+.autocrew_update/*.*
+.backup/*.*
+autocrew.log
+config.ini
 scripts/*.*
 .vscode/*.*
-*.pyc
