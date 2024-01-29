@@ -210,14 +210,15 @@ class AutoCrew():
     def generate_scripts(self, overall_goal, num_scripts):
         csv_file_paths = []
         for i in range(num_scripts):
-            print(f"Generating crew {i + 1} of {num_scripts}...")
-            file_path = self.generate_single_script(i, num_scripts, overall_goal)
+            crew_name = get_next_crew_name(overall_goal)  # Get the next available crew name
+            logging.info(f"Generating crew {i + 1} of {num_scripts} ('{crew_name}' crew)...")
+            file_path = self.generate_single_script(i, num_scripts, overall_goal, crew_name)
             csv_file_paths.append(file_path)
         return csv_file_paths
 
         
     # Define a function to process LLM response
-    def generate_single_script(self, i, num_scripts, overall_goal):
+    def generate_single_script(self, i, num_scripts, overall_goal, crew_name):
         def process_response(response):
             # Determine the Greek letter suffix for this crew
             greek_suffix = get_next_crew_name(overall_goal)
@@ -285,6 +286,8 @@ class AutoCrew():
                 
 
     def rank_crews(self, csv_file_paths, overall_goal, verbose=False):
+        logging.info("Starting the ranking process...")  # Add this line to confirm the method is called
+    
         ranked_crews = []
         overall_summary = ""
 
@@ -384,7 +387,7 @@ class AutoCrew():
         overall_summary += f'\nRanking Summary:\n{ranked_crew}'
 
         return ranked_crews, overall_summary
-    
+        logging.info("Ranking process completed.")  # Add this line to confirm the method has finished
     def get_existing_scripts(self, overall_goal):
         # Assuming scripts are stored in a directory named "scripts"
         script_dir = os.path.join(os.getcwd(), "scripts")

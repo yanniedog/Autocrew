@@ -34,9 +34,17 @@ def get_next_crew_name(overall_goal, script_directory="scripts"):
 
     formatted_goal = overall_goal.replace(" ", "-")
     existing_files = [f for f in os.listdir(directory) if (f.endswith('.csv') or f.endswith('.py')) and formatted_goal in f]
-    existing_indices = [GREEK_ALPHABETS.index(f.split('-')[-1].split('.')[0]) for f in existing_files if f.split('-')[-1].split('.')[0] in GREEK_ALPHABETS]
-    next_index = (max(existing_indices) + 1) % len(GREEK_ALPHABETS) if existing_indices else 0
-    return GREEK_ALPHABETS[next_index]
+    existing_crew_names = [f.split('-')[-1].split('.')[0] for f in existing_files]
+    existing_crew_indices = [GREEK_ALPHABETS.index(name) for name in existing_crew_names if name in GREEK_ALPHABETS]
+
+    # Find the next available Greek alphabet name
+    for i, name in enumerate(GREEK_ALPHABETS):
+        if i not in existing_crew_indices:
+            return name
+
+    # If all names are taken, append a number to the last Greek alphabet name
+    return f"{GREEK_ALPHABETS[-1]}_{len(existing_crew_indices) + 1}"
+
 
 
 def parse_csv_data(response, delimiter=',', filename=''):
