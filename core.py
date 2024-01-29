@@ -1,23 +1,11 @@
 # filename: core.py
 
-import configparser
-import copy
-import csv
-import io
-import logging
-import os
-import subprocess
-import requests
-from datetime import datetime
-from packaging import version
-from openai import OpenAI
-from utils import (count_tokens, get_next_crew_name, parse_csv_data,
-                   save_csv_output, write_crewai_script, countdown_timer,
-                   redact_api_key, GREEK_ALPHABETS)
+# Standard library imports
 import argparse
 import configparser
 import copy
 import csv
+import datetime
 import io
 import json
 import logging
@@ -27,24 +15,30 @@ import requests
 import shutil
 import subprocess
 import sys
-import tiktoken
 import time
-import argparse
-from datetime import datetime
-from packaging import version
 from typing import Any, Dict, List
 
+# External libraries imports
+from packaging import version
+from openai import OpenAI
+from datetime import datetime
+
+
+# Local application/utility specific imports
+from utils import (
+    count_tokens, get_next_crew_name, parse_csv_data,
+    save_csv_output, write_crewai_script, countdown_timer,
+    redact_api_key, GREEK_ALPHABETS
+)
 from crewai import Agent, Crew, Process, Task
 from langchain_community.llms import Ollama
 from langchain_community.tools import DuckDuckGoSearchRun
 from langchain.callbacks.manager import CallbackManager
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
-from openai import OpenAI
 
 
     
 class AutoCrew():    
-
     def __init__(self, config_file='config.ini'):
         self.config = configparser.ConfigParser()
         if not os.path.exists(config_file):
@@ -211,7 +205,7 @@ class AutoCrew():
         csv_file_paths = []
         for i in range(num_scripts):
             crew_name = get_next_crew_name(overall_goal)  # Get the next available crew name
-            logging.info(f"Generating crew {i + 1} of {num_scripts} ('{crew_name}' crew)...")
+            logging.info(f"\nGenerating crew {i + 1} of {num_scripts} ('{crew_name}' crew)...")
             file_path = self.generate_single_script(i, num_scripts, overall_goal, crew_name)
             csv_file_paths.append(file_path)
         return csv_file_paths

@@ -6,12 +6,11 @@ import logging
 import os
 import re
 import time
-
+import tiktoken
 from textwrap import dedent
 from datetime import datetime
 
-# Assuming tiktoken is a custom or third-party library you have access to
-import tiktoken
+
 
 GREEK_ALPHABETS = [
     "alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta",
@@ -48,7 +47,21 @@ def get_next_crew_name(overall_goal, script_directory="scripts"):
 
 
 def parse_csv_data(response, delimiter=',', filename=''):
-    """Parses CSV data from a string response."""
+    """
+    Parses CSV data from a string response.
+
+    Args:
+        response (str): The response string containing CSV data.
+        delimiter (str, optional): The delimiter used in the CSV data. Defaults to ','.
+        filename (str, optional): The filename for reference in logging. Defaults to ''.
+
+    Returns:
+        List[Dict[str, str]]: A list of dictionaries containing parsed agent data.
+
+    Raises:
+        ValueError: If the CSV data is not found, incomplete, or incorrectly formatted.
+    """
+    # Regex pattern to extract CSV data
     csv_pattern = r'("role","goal","backstory","assigned_task","allow_delegation".*?)(?:```|$)'
     match = re.search(csv_pattern, response, re.DOTALL)
     if not match:
@@ -58,41 +71,53 @@ def parse_csv_data(response, delimiter=',', filename=''):
     csv_data = match.group(1).strip()  # Remove any extra whitespace
     logging.debug(f"Extracted CSV data for parsing:\n{csv_data}")
 
+    # Define the expected header fields
     header = ['role', 'goal', 'backstory', 'assigned_task', 'allow_delegation']
     agents_data = []
 
+    # Parse the CSV data
     try:
         csv_reader = csv.reader(io.StringIO(csv_data), delimiter=delimiter)
         lines = list(csv_reader)
-    except Exception as e:
+    except csv.Error as e:
         logging.error(f"Error reading CSV data: {e}")
-        raise
+        raise ValueError('Error parsing CSV data') from e
 
-    if not lines:
-        logging.error("CSV data is empty after splitting into lines.")
-        raise ValueError('CSV data is empty')
+    # Validate if the header and at least one line of data exist
+    if len(lines) < 2:
+        logging.error("CSV data is empty or missing required lines.")
+        raise ValueError('CSV data is empty or incomplete')
 
+    # Validate and extract headers
     header_line = lines[0]
     header_indices = {h.lower(): i for i, h in enumerate(header_line)}
-
     for required_header in header:
         if required_header not in header_indices:
             logging.error(f'Missing required header "{required_header}" in CSV data')
             raise ValueError(f'Missing required header "{required_header}"')
 
-    for line in lines[1:]:  # Skip the header line
+    # Process each line of the CSV
+    for line in lines[1:]:
         agent_data = {}
         for header_name in header:
             header_index = header_indices.get(header_name.lower())
-            agent_data[header_name] = line[header_index].strip('"').strip() if header_index is not None and header_index < len(line) else None
+            if header_index is not None and header_index < len(line):
+                agent_data[header_name] = line[header_index].strip('"').strip()
+            else:
+                logging.error(f'Missing or incomplete data for "{header_name}" in line: {line}')
+                raise ValueError(f'Missing or incomplete data for "{header_name}"')
+
+        # Additional validation can be added here as needed
         if 'role' not in agent_data or not agent_data['role']:
-            logging.error('Role component missing in line of CSV data')
+            logging.error('Role component missing in a line of CSV data')
             raise ValueError('Role component missing in CSV data')
+
         agent_data['filename'] = filename
         agents_data.append(agent_data)
 
     logging.debug(f"Successfully parsed {len(agents_data)} agents from CSV data.")
     return agents_data
+
 
 def save_csv_output(response, overall_goal, script_directory="scripts", truncation_length=40, greek_suffix=None):
     """Saves the CSV output to a file."""
@@ -109,7 +134,7 @@ def save_csv_output(response, overall_goal, script_directory="scripts", truncati
     if cleaned_csv_lines:
         csv_data = '\n'.join(cleaned_csv_lines)
         logging.debug("Extracted and cleaned CSV data from raw output.")
-        logging.info(f"\nDetails of your auto-generated AI crew:\n\n{csv_data}")
+        logging.info(f"\nDetails of your auto-generated crew:\n\n{csv_data}")
     else:
         logging.error("No CSV data found in the response.")
         raise ValueError("No CSV data found in the response")
@@ -145,84 +170,121 @@ def redact_api_key(api_key):
     """Redacts all but the last 4 characters of the API key."""
     return '*' * (len(api_key) - 4) + api_key[-4:] if len(api_key) > 4 else api_key
 
-def write_crewai_script(agents_data, crew_tasks, file_name, llm_endpoint_within_generated_scripts, llm_model_within_generated_scripts, add_ollama_host_url_to_crewai_scripts, ollama_host, add_api_keys_to_crewai_scripts, openai_api_key, openai_model):
-    # Define the path for the script file
-    script_file_path = os.path.join("scripts", file_name)
+def write_crewai_script(agents_data, crew_tasks, file_name, llm_endpoint_within_generated_scripts, 
+                        llm_model_within_generated_scripts, add_ollama_host_url_to_crewai_scripts, 
+                        ollama_host, add_api_keys_to_crewai_scripts, openai_api_key, openai_model):
+    """
+    Generates and writes a CrewAI script based on provided data.
 
-    # Open the file and start writing the script content
-    with open(script_file_path, 'w') as file:
-        # Script header and imports
-        file.write(
-            'import os\n'
-            'from crewai import Agent, Task, Crew, Process\n'
-            'from langchain_openai import ChatOpenAI\n'
-            'from langchain_community.tools import DuckDuckGoSearchRun\n'
-            'from textwrap import dedent\n\n'
-        )
+    Args:
+        agents_data (list): List of dictionaries containing agent data.
+        crew_tasks (list): List of crew tasks.
+        file_name (str): Name of the file to be written.
+        llm_endpoint_within_generated_scripts (str): LLM endpoint setting.
+        llm_model_within_generated_scripts (str): LLM model setting.
+        add_ollama_host_url_to_crewai_scripts (bool): Flag to add Ollama host URL.
+        ollama_host (str): Ollama host URL.
+        add_api_keys_to_crewai_scripts (bool): Flag to add API keys in the script.
+        openai_api_key (str): OpenAI API key.
+        openai_model (str): OpenAI model setting.
+    """
 
-        # Check and write LLM configuration based on settings
-        if llm_endpoint_within_generated_scripts == 'openai':
-            if add_api_keys_to_crewai_scripts:
-                file.write(f'openai_api_key = "{openai_api_key}"\n')
-            else:
-                file.write('openai_api_key = os.getenv("OPENAI_API_KEY")\n')
-            file.write(f'OpenAIGPT35 = ChatOpenAI(api_key=openai_api_key, model_name="{openai_model}", temperature=0.7)\n')
-            llm_var = 'OpenAIGPT35'
-        elif llm_endpoint_within_generated_scripts == 'ollama':
-            # Import the Ollama class and instantiate it
-            file.write('from langchain_community.llms import Ollama\n')
-            file.write(f'OllamaInstance = Ollama(base_url="{ollama_host}", model="{llm_model_within_generated_scripts}", verbose=True)\n')
-            llm_var = 'OllamaInstance'
-        # You can add more conditions here if there are other LLM endpoints to handle
+    script_directory = "scripts"
+    script_file_path = os.path.join(script_directory, file_name)
 
-        # Ensure llm_var is defined
-        if llm_var is None:
-            raise ValueError("LLM variable not set. Check your configuration.")
+    # Create the scripts directory if it doesn't exist
+    if not os.path.exists(script_directory):
+        os.makedirs(script_directory)
 
-        # Define agents and their tasks
-        task_vars = []  # List to keep track of task variable names
-        crew_agents = []  # List to keep track of agent variable names
+    try:
+        with open(script_file_path, 'w') as file:
+            # Start writing the script content
+            write_script_header(file)
+            write_llm_configuration(file, llm_endpoint_within_generated_scripts, llm_model_within_generated_scripts,
+                                    add_ollama_host_url_to_crewai_scripts, ollama_host, add_api_keys_to_crewai_scripts,
+                                    openai_api_key, openai_model)
 
-        for agent in agents_data:
-            agent_var_name = agent['role'].replace(' ', '_').replace('-', '_').replace('.', '_')
-            crew_agents.append(f'agent_{agent_var_name}')  # Add the agent variable name to the list
-            file.write(f'agent_{agent_var_name} = Agent(\n')
-            file.write(f'    role="{agent["role"]}",\n')
-            file.write(f'    backstory=dedent("""{agent["backstory"]}"""),\n')
-            file.write(f'    goal=dedent("""{agent["goal"]}"""),\n')
-            file.write(f'    allow_delegation={agent["allow_delegation"]},\n')
-            file.write(f'    verbose=True,\n')
-            file.write(f'    llm={llm_var},\n')
-            file.write(')\n')
-            # Update Task instantiation to use keyword arguments
-            task_var_name = f'task_{agent_var_name}'
-            task_vars.append(task_var_name)
-            file.write(f'{task_var_name} = Task(\n')
-            file.write(f'    description=dedent("""{agent["assigned_task"]}"""),\n')
-            file.write(f'    agent=agent_{agent_var_name},\n')
-            file.write(')\n')
+            # Define agents and their tasks
+            task_vars, crew_agents = write_agents_and_tasks(file, agents_data)
 
-        # Define crew
-        file.write(
-            'crew = Crew(\n'
-            f'    agents=[{", ".join(crew_agents)}],\n'  # Use the list of agent variable names
-            f'    tasks=[{", ".join(task_vars)}],\n'
-            '    verbose=True,\n'
-            '    process=Process.sequential,\n'
-            ')\n\n'
-            'result = crew.kickoff()\n\n'
-        )
+            # Define crew and main function
+            write_crew_definition(file, crew_agents, task_vars)
+            write_main_function(file)
 
-        # Main function
-        file.write(
-            'if __name__ == "__main__":\n'
-            '    print("## Welcome to Crew AI")\n'
-            '    print("-------------------------------")\n'
-            '    result = crew.kickoff()\n'
-            '    print("\\n\\n########################")\n'
-            '    print("## Here is your custom crew run result:")\n'
-            '    print("########################\\n")\n'
-            '    print(result)\n'
-        )
+        logging.info(f"\nYour CrewAI script is saved here: {script_file_path}")
+    except IOError as e:
+        logging.error(f"Error writing to file {script_file_path}: {e}")
+        raise
 
-    logging.info(f"\nYour CrewAI script is saved here:\n {script_file_path}\n")  # Log the full path of the saved file
+def write_script_header(file):
+    """Writes the header of the script including necessary imports."""
+    file.write(
+        'import os\n'
+        'from crewai import Agent, Task, Crew, Process\n'
+        'from langchain_openai import ChatOpenAI\n'
+        'from langchain_community.tools import DuckDuckGoSearchRun\n'
+        'from textwrap import dedent\n\n'
+    )
+def write_llm_configuration(file, llm_endpoint, llm_model, add_ollama_url, ollama_host, add_api_keys, openai_api_key, openai_model):
+    """Writes the configuration for the LLM endpoint."""
+    if llm_endpoint == 'openai':
+        api_key_line = f'openai_api_key = "{openai_api_key}"\n' if add_api_keys else 'openai_api_key = os.getenv("OPENAI_API_KEY")\n'
+        file.write(api_key_line)
+        file.write(f'OpenAIGPT35 = ChatOpenAI(api_key=openai_api_key, model_name="{openai_model}", temperature=0.7)\n')
+        file.write('llm = OpenAIGPT35\n\n')
+    elif llm_endpoint == 'ollama':
+        ollama_import_line = 'from langchain_community.llms import Ollama\n'
+        ollama_config_line = f'OllamaInstance = Ollama(base_url="{ollama_host}", model="{llm_model}", verbose=True)\n' if add_ollama_url else ''
+        file.write(ollama_import_line)
+        file.write(ollama_config_line)
+        file.write('llm = OllamaInstance\n\n')
+def write_agents_and_tasks(file, agents_data):
+    """Writes the agents and their tasks to the script."""
+    task_vars, crew_agents = [], []
+
+    for agent in agents_data:
+        agent_var_name = agent['role'].replace(' ', '_').replace('-', '_').replace('.', '_')
+        crew_agents.append(f'agent_{agent_var_name}')
+        
+        file.write(f'agent_{agent_var_name} = Agent(\n')
+        file.write(f'    role="{agent["role"]}",\n')
+        file.write(f'    backstory=dedent("""{agent["backstory"]}"""),\n')
+        file.write(f'    goal=dedent("""{agent["goal"]}"""),\n')
+        file.write(f'    allow_delegation={agent["allow_delegation"]},\n')
+        file.write(f'    verbose=True,\n')
+        file.write(f'    llm=llm,\n')
+        file.write(')\n')
+
+        task_var_name = f'task_{agent_var_name}'
+        task_vars.append(task_var_name)
+        file.write(f'{task_var_name} = Task(\n')
+        file.write(f'    description=dedent("""{agent["assigned_task"]}"""),\n')
+        file.write(f'    agent=agent_{agent_var_name},\n')
+        file.write(')\n\n')
+
+    return task_vars, crew_agents
+def write_crew_definition(file, crew_agents, task_vars):
+    """Writes the crew definition to the script."""
+    crew_definition = (
+        'crew = Crew(\n'
+        f'    agents=[{", ".join(crew_agents)}],\n'
+        f'    tasks=[{", ".join(task_vars)}],\n'
+        '    verbose=True,\n'
+        '    process=Process.sequential,\n'
+        ')\n\n'
+    )
+    file.write(crew_definition)
+def write_main_function(file):
+    """Writes the main function of the script."""
+    main_function = (
+        'if __name__ == "__main__":\n'
+        '    print("## Welcome to Crew AI")\n'
+        '    print("-------------------------------")\n'
+        '    result = crew.kickoff()\n'
+        '    print("\\n\\n########################")\n'
+        '    print("## Here is your custom crew run result:")\n'
+        '    print("########################\\n")\n'
+        '    print(result)\n'
+    )
+    file.write(main_function)
+

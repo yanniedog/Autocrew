@@ -90,6 +90,10 @@ def install_dependencies():
     if not os.path.exists(requirements_file):
         raise FileNotFoundError(f"{requirements_file} not found in the current working directory.")
 
+    if os.stat(requirements_file).st_size == 0:
+        logging.error("The requirements.txt file is empty.")
+        raise ValueError("Empty requirements.txt file.")
+
     pip_executable = shutil.which('pip') or shutil.which('pip3')
     if not pip_executable:
         raise EnvironmentError("pip is not available on the system.")
@@ -102,10 +106,10 @@ def install_dependencies():
         logging.error("Error occurred while installing dependencies:")
         logging.error(result.stdout)
         logging.error(result.stderr)
-
         raise RuntimeError("Failed to install dependencies.")
     else:
-        print("Dependencies installed successfully.")
+        logging.info("Dependencies installed successfully.")
+
 
 def handle_exception(exc_type, exc_value, exc_traceback):
     if issubclass(exc_type, (KeyboardInterrupt, SystemExit)):
@@ -129,67 +133,99 @@ def positive_int(value):
 
 def check_latest_version():
     try:
+        # Send request to GitHub API to get the latest release version
         response = requests.get('https://api.github.com/repos/yanniedog/autocrew/releases/latest')
-        response.raise_for_status()
+        response.raise_for_status()  # Raise an exception for HTTP errors
         latest_release = response.json()
         latest_version = latest_release['tag_name']
 
+        # Compare the latest version from GitHub with the current version
         if version.parse(latest_version) > version.parse(AUTOCREW_VERSION):
-            return f"An updated version of AutoCrew is available: {latest_version}"
+            message = f"An updated version of AutoCrew is available: {latest_version}"
+            return latest_version, message
         else:
-            return "You are running the latest version of AutoCrew."
+            message = "You are running the latest version of AutoCrew."
+            return AUTOCREW_VERSION, message
+    except requests.RequestException as e:
+        # Handle any request-related errors
+        message = f"Error while checking for the latest version (HTTP error): {e}"
+        return AUTOCREW_VERSION, message
+    except json.JSONDecodeError:
+        # Handle JSON decoding errors (if the response is not in JSON format)
+        message = "Error while checking for the latest version (Invalid JSON response)."
+        return AUTOCREW_VERSION, message
     except Exception as e:
-        return f"Error checking for the latest version: {e}"
+        # Handle any other unforeseen errors
+        message = f"Error while checking for the latest version: {e}"
+        return AUTOCREW_VERSION, message
+
 
 
 def upgrade_autocrew(latest_version):
     backup_dir = '.backup'
-    if not os.path.exists(backup_dir):
-        os.makedirs(backup_dir)
-    
-    logfile_path = 'autocrew.log'
-    logfile_backup_name = f'autocrew-upgrade-logfile_(v-{AUTOCREW_VERSION}--to--v-{latest_version}).log'
-    logfile_backup_path = os.path.join(backup_dir, logfile_backup_name)
-    if os.path.exists(logfile_path):
-        shutil.copyfile(logfile_path, logfile_backup_path)
-        logging.info(f"Backing up the current logfile to {logfile_backup_path}...")
+    os.makedirs(backup_dir, exist_ok=True)
 
-    config_backup_path = os.path.join(backup_dir, 'config_backup.ini')
-    shutil.copyfile('config.ini', config_backup_path)
-    logging.info("Backing up the current config.ini file...")
+    # Backup log and config files
+    for file_name in ['autocrew.log', 'config.ini']:
+        src_path = file_name
+        backup_path = os.path.join(backup_dir, f"{file_name}.backup")
+        if os.path.exists(src_path):
+            shutil.copy(src_path, backup_path)
+            logging.info(f"Backing up {src_path} to {backup_path}...")
 
     update_dir = 'autocrew_update'
-    if os.path.exists(update_dir):
-        shutil.rmtree(update_dir)
-    
-    logging.info("Cloning the latest version from GitHub...")
-    subprocess.run(['git', 'clone', 'https://github.com/yanniedog/autocrew.git', update_dir])
+    shutil.rmtree(update_dir, ignore_errors=True)
 
+    # Clone the latest version from GitHub
+    git_clone_result = subprocess.run(['git', 'clone', 'https://github.com/yanniedog/autocrew.git', update_dir], 
+                                      capture_output=True, text=True)
+
+    if git_clone_result.returncode != 0:
+        logging.error("Failed to clone the repository:")
+        logging.error(git_clone_result.stdout)
+        logging.error(git_clone_result.stderr)
+        raise RuntimeError("Failed to clone the AutoCrew repository.")
+
+    # File update with confirmation
     for filename in os.listdir(update_dir):
         source_path = os.path.join(update_dir, filename)
         if os.path.isfile(source_path) and filename != 'config.ini':
-            shutil.copyfile(source_path, filename)
-            logging.info(f"Copied {filename} to the current directory.")
+            confirmation = input(f"Do you want to overwrite {filename}? (yes/no): ").lower()
+            if confirmation == 'yes':
+                shutil.copyfile(source_path, filename)
+                logging.info(f"Copied {filename} to the current directory.")
+            else:
+                logging.info(f"Skipped updating {filename}.")
 
-    logging.info("Updating the config.ini file with your previous settings...")
-    config = configparser.ConfigParser()
-    config.read(os.path.join(update_dir, 'config.ini'))
-    config_backup = configparser.ConfigParser()
-    config_backup.read(config_backup_path)
-    for section in config_backup.sections():
-        if not config.has_section(section):
-            config.add_section(section)  
-        for key, value in config_backup.items(section):
-            config.set(section, key, value)
-    with open('config.ini', 'w') as configfile:
-        config.write(configfile)
+    # Update config.ini with previous settings
+    update_config_file(update_dir, backup_dir)
 
     shutil.rmtree(update_dir)
-    logging.info("Cleaned up the update directory.")
-
-    logging.info(f"Upgrade successful. AutoCrew has been updated from version {AUTOCREW_VERSION} to version {latest_version}.")
+    logging.info("Upgrade process completed.")
     print(f"Upgrade successful. AutoCrew has been updated from version {AUTOCREW_VERSION} to version {latest_version}.")
     sys.exit(0)
+
+def update_config_file(update_dir, backup_dir):
+    new_config_path = os.path.join(update_dir, 'config.ini')
+    backup_config_path = os.path.join(backup_dir, 'config.ini.backup')
+    if os.path.exists(new_config_path) and os.path.exists(backup_config_path):
+        config = configparser.ConfigParser()
+        config.read(new_config_path)
+        config_backup = configparser.ConfigParser()
+        config_backup.read(backup_config_path)
+
+        for section in config_backup.sections():
+            if not config.has_section(section):
+                config.add_section(section)
+            for key, value in config_backup.items(section):
+                config.set(section, key, value)
+
+        with open('config.ini', 'w') as configfile:
+            config.write(configfile)
+            logging.info("Updated the config.ini file with previous settings.")
+    else:
+        logging.error("Missing new or backup config.ini files. Skipping config update.")
+
     
 def log_command_line_arguments():
     logging.info(f"Command-line arguments: {' '.join(sys.argv[1:])}")
@@ -214,7 +250,7 @@ def main():
     sys.excepthook = handle_exception
 
     # Check for the latest version
-    version_message = check_latest_version()
+    latest_version, version_message = check_latest_version()
     startup_message = (f"\nAutoCrew version: {AUTOCREW_VERSION}\n" +
                        f"{version_message}\n\n" +
                        "Use the -? or -h command line options to display help information.\n" +
@@ -223,20 +259,16 @@ def main():
                        "https://github.com/yanniedog/autocrew/issues/new\n")
     logging.info(startup_message)
 
-    if args.upgrade or args.help:
-        if unknown_args:
-            parser.print_usage()
-            logging.error("Error: The '-u/--upgrade' and '-h/-?/--help' options cannot be used with other arguments.")
-            sys.exit(1)
-        elif args.upgrade:
-            if version.parse(version_message) > version.parse(AUTOCREW_VERSION):
-                upgrade_autocrew(version_message)
-            else:
-                logging.info("No new version available or you are already running the latest version.")
-            sys.exit(0)
-        elif args.help:
-            parser.print_help()
-            sys.exit(0)
+    if args.help:
+        parser.print_help()
+        sys.exit(0)
+
+    if args.upgrade:
+        if version.parse(latest_version) > version.parse(AUTOCREW_VERSION):
+            upgrade_autocrew(latest_version)
+        else:
+            logging.info("No new version available or you are already running the latest version.")
+        sys.exit(0)
 
     autocrew = AutoCrew()
     autocrew.log_config_with_redacted_api_keys()
