@@ -287,7 +287,29 @@ def clear_screen_and_logfile(logfile):
     # Clear the log file
     with open(logfile, 'w'):
         pass
+def print_ranking_csv(overall_goal):
+    """Print the contents of the ranking CSV file to the console."""
+    script_dir = os.path.join(os.getcwd(), "scripts")
+    truncated_goal = truncate_overall_goal(overall_goal)
+    pattern = re.compile(rf"crewai-autocrew-\d{{8}}-\d{{6}}-{truncated_goal}-ranking\.csv$")
 
+    # Find the ranking CSV file
+    for file_name in os.listdir(script_dir):
+        if pattern.match(file_name):
+            ranking_csv_path = os.path.join(script_dir, file_name)
+            break
+    else:
+        logging.error("Ranking CSV file not found.")
+        return
+
+    # Print the contents of the CSV file
+    try:
+        with open(ranking_csv_path, 'r') as csv_file:
+            reader = csv.reader(csv_file)
+            for row in reader:
+                print(','.join(row))
+    except Exception as e:
+        logging.error(f"Error reading CSV file: {e}")
 def main():
     # Configure logging at the start of the application
     setup_logging(log_file='autocrew.log')
@@ -312,18 +334,42 @@ def main():
     autocrew = AutoCrew(config_path)  # Pass the path to the config.ini file to the AutoCrew constructor
     autocrew.log_config_with_redacted_api_keys()
 
+    # Execute AutoCrew script and handle rankings if applicable
     if run_autocrew_script(num_alternative_crews, overall_goal, rank_crews):
         if rank_crews:
-            handle_ranked_crews(overall_goal)  # Call the function with the correct argument
+            handle_ranked_crews(overall_goal)
+            print_ranking_csv(overall_goal)  # Print the ranking CSV file after ranking is completed
         else:
             # Additional logic if ranking is not performed
             pass
     else:
         logging.error("Autocrew script execution failed.")
 
+def print_ranking_csv(overall_goal):
+    """Print the contents of the ranking CSV file to the console."""
+    script_dir = os.path.join(os.getcwd(), "scripts")
+    truncated_goal = truncate_overall_goal(overall_goal)
+    pattern = re.compile(rf"crewai-autocrew-\d{{8}}-\d{{6}}-{truncated_goal}-ranking\.csv$")
+
+    # Find the ranking CSV file
+    for file_name in os.listdir(script_dir):
+        if pattern.match(file_name):
+            ranking_csv_path = os.path.join(script_dir, file_name)
+            break
+    else:
+        logging.error("Ranking CSV file not found.")
+        return
+
+    # Print the contents of the CSV file
+    try:
+        with open(ranking_csv_path, 'r') as csv_file:
+            reader = csv.reader(csv_file)
+            for row in reader:
+                print(','.join(row))
+    except Exception as e:
+        logging.error(f"Error reading CSV file: {e}")
+
 if __name__ == "__main__":
     clear_screen_and_logfile('autocrew.log')
     main()
-
-
 
