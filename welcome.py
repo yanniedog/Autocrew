@@ -310,6 +310,31 @@ def print_ranking_csv(overall_goal):
                 print(','.join(row))
     except Exception as e:
         logging.error(f"Error reading CSV file: {e}")
+
+def print_ranking_csv(overall_goal):
+    """Print the contents of the ranking CSV file to the console."""
+    script_dir = os.path.join(os.getcwd(), "scripts")
+    truncated_goal = truncate_overall_goal(overall_goal)
+    pattern = re.compile(rf"crewai-autocrew-\d{{8}}-\d{{6}}-{truncated_goal}-ranking\.csv$")
+
+    # Find the ranking CSV file
+    for file_name in os.listdir(script_dir):
+        if pattern.match(file_name):
+            ranking_csv_path = os.path.join(script_dir, file_name)
+            break
+    else:
+        logging.error("Ranking CSV file not found.")
+        return
+
+    # Print the contents of the CSV file
+    try:
+        with open(ranking_csv_path, 'r') as csv_file:
+            reader = csv.reader(csv_file)
+            for row in reader:
+                print(','.join(row))
+    except Exception as e:
+        logging.error(f"Error reading CSV file: {e}")
+        
 def main():
     # Configure logging at the start of the application
     setup_logging(log_file='autocrew.log')
@@ -372,4 +397,5 @@ def print_ranking_csv(overall_goal):
 if __name__ == "__main__":
     clear_screen_and_logfile('autocrew.log')
     main()
+
 
