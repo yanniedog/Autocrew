@@ -10,12 +10,6 @@ import tiktoken
 from textwrap import dedent
 from datetime import datetime
 
-from logging_config import setup_logging
-
-setup_logging()
-
-
-
 
 
 GREEK_ALPHABETS = [
@@ -31,21 +25,13 @@ def count_tokens(string: str) -> int:
     num_tokens = len(encoding.encode(string))
     return num_tokens
 
-import re
-
-def sanitize_for_filename(text):
-    """Sanitize a string to be safe for use as a filename."""
-    text = text.replace(" ", "-")  # Replacing spaces with hyphens
-    text = re.sub(r'[\\/*?:"<>|]', '', text)  # Removing \ / * ? : " < > |
-    return text
-
 def get_next_crew_name(overall_goal, script_directory="scripts"):
     """Determines the next crew name based on existing files."""
     directory = os.path.join(os.getcwd(), script_directory)
     if not os.path.exists(directory):
         os.makedirs(directory)  # Create the directory if it doesn't exist
 
-    formatted_goal = sanitize_for_filename(overall_goal)
+    formatted_goal = overall_goal.replace(" ", "-")
     existing_files = [f for f in os.listdir(directory) if (f.endswith('.csv') or f.endswith('.py')) and formatted_goal in f]
     existing_crew_names = [f.split('-')[-1].split('.')[0] for f in existing_files]
     existing_crew_indices = [GREEK_ALPHABETS.index(name) for name in existing_crew_names if name in GREEK_ALPHABETS]
@@ -58,16 +44,6 @@ def get_next_crew_name(overall_goal, script_directory="scripts"):
     # If all names are taken, append a number to the last Greek alphabet name
     return f"{GREEK_ALPHABETS[-1]}_{len(existing_crew_indices) + 1}"
 
-def get_existing_scripts(overall_goal, script_directory="scripts"):
-    """Finds existing script files that match the overall goal."""
-    directory = os.path.join(os.getcwd(), script_directory)
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-
-    sanitized_goal = sanitize_for_filename(overall_goal)
-    pattern = re.compile(rf"crewai-autocrew-\d{{8}}-\d{{6}}-{sanitized_goal}-.*\.(csv|py)$")
-
-    return [os.path.join(directory, f) for f in os.listdir(directory) if pattern.match(f)]
 
 
 def parse_csv_data(response, delimiter=',', filename=''):
@@ -166,10 +142,8 @@ def save_csv_output(response, overall_goal, script_directory="scripts", truncati
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     # Use the provided greek_suffix if available, otherwise get the next one
     greek_suffix = greek_suffix or get_next_crew_name(overall_goal, script_directory)
-
-    # Sanitize and truncate the overall_goal for the filename
-    sanitized_goal = sanitize_for_filename(overall_goal)
-    truncated_goal = sanitized_goal[:truncation_length]
+    # Truncate the overall_goal to the specified number of characters for the filename
+    truncated_goal = overall_goal[:truncation_length].replace(" ", "-")
     file_name = f'crewai-autocrew-{timestamp}-{truncated_goal}-{greek_suffix}.csv'
     directory = os.path.join(os.getcwd(), script_directory)
     if not os.path.exists(directory):
@@ -182,8 +156,6 @@ def save_csv_output(response, overall_goal, script_directory="scripts", truncati
         logging.debug(f"CSV file saved at: {file_path}")
 
     return file_path
-
-
 
 
 
@@ -315,4 +287,3 @@ def write_main_function(file):
         '    print(result)\n'
     )
     file.write(main_function)
-
