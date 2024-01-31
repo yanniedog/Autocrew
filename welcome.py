@@ -12,12 +12,9 @@ import re
 import csv
 import sys
 import textwrap
-from autocrew import check_latest_version
 from logging_config import flush_log_handlers
 from logging_config import setup_logging
 from core import AutoCrew
-
-setup_logging()
 
 GREEK_ALPHABETS = ["alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta", "iota", "kappa",
                    "lambda", "mu", "nu", "xi", "omicron", "pi", "rho", "sigma", "tau", "upsilon"]
@@ -226,21 +223,6 @@ def handle_openai_api_key(config):
         new_key = get_input("Enter your OpenAI API key: ")
         config['AUTHENTICATORS']['openai_api_key'] = new_key
 
-def get_ollama_models():
-    """Retrieve the list of available models from Ollama."""
-    try:
-        result = subprocess.run(['ollama', 'list'], capture_output=True, text=True, check=True)
-        lines = result.stdout.splitlines()
-        models = []
-        for line in lines[1:]:  # Skip the header line
-            parts = line.split()
-            if parts:
-                models.append(parts[0])  # Assuming the first element is the model name
-        return models
-    except subprocess.CalledProcessError as e:
-        logging.error(f"Error retrieving models from Ollama: {e}")
-        return []
-
 def choose_llm_endpoint_and_model(config):
     """Prompt the user to choose the LLM endpoint and model, or keep the existing ones."""
     existing_endpoint = config.get('BASIC', 'llm_endpoint', fallback=None)
@@ -285,19 +267,6 @@ def choose_llm_endpoint_and_model(config):
             config.set('CREWAI_SCRIPTS', 'llm_model_within_generated_scripts', crewai_model)
 
     return llm_endpoint, openai_model
-
-def handle_openai_api_key(config):
-    """Handle the OpenAI API key based on user input."""
-    if 'openai_api_key' in config['AUTHENTICATORS'] and config['AUTHENTICATORS']['openai_api_key']:
-        redacted_key = get_redacted_api_key(config['AUTHENTICATORS']['openai_api_key'])
-        use_existing_key = get_input(f"Use existing OpenAI API key ({redacted_key})? (y/n): ", validator=validate_yes_no)
-        if use_existing_key.lower() in ['no', 'n']:
-            new_key = get_input("Enter your new OpenAI API key: ")
-            config['AUTHENTICATORS']['openai_api_key'] = new_key
-    else:
-        new_key = get_input("Enter your OpenAI API key: ")
-        config['AUTHENTICATORS']['openai_api_key'] = new_key
-
 
 def clear_screen_and_logfile(logfile):
     """Clear the screen and the log file."""
@@ -363,10 +332,6 @@ def main():
     config.read('config.ini')
     log_initial_config(config)  # Log the initial config settings
 
-    # Check for the latest version of AutoCrew
-    latest_version, version_message = check_latest_version()
-    logging.info(version_message)  # Print the message about the latest version
-    logging.info("\nWelcome to AutoCrew!\nLet's get started.\n")
     overall_goal = get_input("Please specify your overall goal: ")
     
     # Default answer set to 3 for the number of alternative crews
