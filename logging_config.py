@@ -1,3 +1,5 @@
+# filename: logging_config.py
+
 import logging
 
 def setup_logging(log_file='autocrew.log'):
@@ -12,8 +14,8 @@ def setup_logging(log_file='autocrew.log'):
     console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.INFO)  # Set the console handler level to INFO
 
-    # Create formatters and add it to handlers
-    file_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s')
+    # Create formatters and add them to handlers
+    file_formatter = logging.Formatter('%(asctime)s - [%(levelname)s] [%(filename)s:%(funcName)s:%(lineno)d] %(message)s')
     file_handler.setFormatter(file_formatter)
 
     console_formatter = logging.Formatter('%(message)s')  # Only log the message
@@ -24,4 +26,3 @@ def setup_logging(log_file='autocrew.log'):
     logger.addHandler(console_handler)
     
     logging.getLogger('httpx').setLevel(logging.WARNING)
-

@@ -147,12 +147,13 @@ class AutoCrew():
         # Construct the instruction including the overall_goal
         instruction = (
             f'Create a dataset in a CSV format with each field enclosed in double quotes, '
-            f'for a team of agents with the goal: "{overall_goal}". '
+            f'for a team of agents. Overall goal for the team is: "{overall_goal}". '
+            f'You need to design agents that will work effectively and collaboratively to achieve the team goal successfully. '
+            f'Agents are identified by their role. You must provide each agent in your team the title of their role, their individual goal within the team, their personal backstory and individual skillset, specific details of a task assigned to them which will help ensure the team goal is completed successfully, and whether or not the agent is permitted to delegate certain duties to other agents (True/False). '
+            f'Your CSV must contain the columns "role", "goal", "backstory", "assigned_task", "allow_delegation". '
             f'Use the delimiter "{delimiter}" to separate the fields. '
-            'Include columns "role", "goal", "backstory", "assigned_task", "allow_delegation". '
-            'Each agent\'s details should be in quotes to avoid confusion with the delimiter. '
-            'Provide a single-word role, individual goal, brief backstory, assigned task, and delegation ability (True/False) for each agent.'
-        )
+            f'Maintain consistent formatting. Each agent\'s details should be in quotes to avoid confusion with the delimiter. '
+            )
         
         # Calculate the number of tokens in the complete instruction
         instruction_tokens = count_tokens(instruction)
@@ -211,7 +212,6 @@ class AutoCrew():
         return csv_file_paths
 
         
-    # Define a function to process LLM response
     def generate_single_script(self, i, num_scripts, overall_goal, crew_name):
         def process_response(response):
             # Determine the Greek letter suffix for this crew
@@ -222,14 +222,15 @@ class AutoCrew():
             agents_data = parse_csv_data(response, delimiter=',', filename=file_path)
             if not agents_data:
                 raise ValueError('No agent data parsed')
+
             # Use the truncated goal for the script filename
             truncated_goal = overall_goal[:self.overall_goal_truncation_for_filenames].replace(" ", "-")
             timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
             file_name = f'crewai-autocrew-{timestamp}-{truncated_goal}-{greek_suffix}.py'
-            
+
             # Generate crew tasks based on the agents_data
             crew_tasks = self.generate_crew_tasks(agents_data)
-            
+
             # Call the standalone function with the necessary parameters
             write_crewai_script(
                 agents_data,
@@ -245,18 +246,20 @@ class AutoCrew():
             )
             return file_path
 
-        # Construct the instruction including the overall_goal
-        instruction = (
-            f'Create a dataset in a CSV format with each field enclosed in double quotes, '
-            f'for a team of agents with the goal: "{overall_goal}". '
-            f'Use the delimiter "," to separate the fields. '
-            'Include columns "role", "goal", "backstory", "assigned_task", "allow_delegation". '
-            'Each agent\'s details should be in quotes to avoid confusion with the delimiter. '
-            'Provide a single-word role, individual goal, brief backstory, assigned task, and delegation ability (True/False) for each agent.'
-        )
+        # Fetch the response from the LLM using the detailed instruction
+        response = self.get_agent_data(overall_goal, ',')
 
-        # Call the LLM with retry logic
-        return self.call_llm_with_retry(instruction, overall_goal, process_response)
+        # Process the LLM response
+        if not response:
+            logging.error('No response from LLM')
+            raise ValueError("Failed to get valid response from LLM.")
+
+        try:
+            return process_response(response)
+        except ValueError as e:
+            logging.error(f"Failed to process LLM response: {e}")
+            raise
+
 
 
  
@@ -280,108 +283,123 @@ class AutoCrew():
                 
 
     def rank_crews(self, csv_file_paths, overall_goal, verbose=False):
-        logging.info("Starting the ranking process...")  # Add this line to confirm the method is called
-    
+        logging.info("Starting the ranking process...")
+
         ranked_crews = []
         overall_summary = ""
 
-        # Determine connection type and model for LLM
-        if self.llm_endpoint == 'ollama':
-            connection_type = "remote" if self.use_remote_ollama_host else "local"
-            model = self.llm_model
-            llm_name = f"Ollama using model {model}"
-        else:
-            connection_type = "remote"
-            model = self.openai_model
-            llm_name = f"OpenAI using model {model}"
+        # Concatenate crew data from CSV files into JSON format
+        concatenated_csv_data, json_data_str = self.concatenate_crew_data(csv_file_paths)
 
-        logging.info(f"Initializing {connection_type} connection to {llm_name} for ranking crews with the overall goal of '{overall_goal}'...")
-
-        concatenated_csv_data = 'crew_name,role,goal,backstory,assigned_task,allow_delegation\n'
-        for file_path in csv_file_paths:
-            try:
-                # Extract the Greek letter (crew name) from the filename
-                crew_name = os.path.basename(file_path).split('-')[-1].split('.')[0]
-                # Check if the crew name is a valid Greek letter
-                if crew_name.lower() not in GREEK_ALPHABETS:
-                    logging.debug(f"Skipping file {file_path} as it does not end with a Greek letter.")
-                    continue
-                with open(file_path, 'r') as file:
-                    csv_data = file.read().strip()
-                if csv_data.count('\n') < 1:
-                    continue
-                # Skip the first line (the remark) and add the crew name to each line
-                csv_lines = csv_data.split('\n')[1:]
-                csv_lines_with_crew_name = [f'"{crew_name}",' + line for line in csv_lines]
-                concatenated_csv_data += '\n'.join(csv_lines_with_crew_name) + '\n'
-            except Exception as e:
-                logging.error(f"Error processing file {file_path}: {e}")
-
-        # Log the concatenated CSV data
-        logging.debug(f"Concatenated CSV Data:\n{concatenated_csv_data}")
-
-        # Log the token count for the concatenated CSV data
-        concatenated_csv_token_count = count_tokens(concatenated_csv_data)
-        logging.debug(f"Token count for concatenated CSV data: {concatenated_csv_token_count}")
-
-        # Prepare the ranking prompt
-        csv_reader = csv.DictReader(io.StringIO(concatenated_csv_data))
-        json_data = [row for row in csv_reader]
-        json_data_str = json.dumps(json_data)
-        if verbose:
-            logging.debug('\nConcatenated CSV Data:')
-            logging.debug(concatenated_csv_data)
-
-        crew_names_str = ', '.join([os.path.basename(file_path).split('-')[-1].split('.')[0] for file_path in csv_file_paths if os.path.basename(file_path).split('-')[-1].split('.')[0].lower() in GREEK_ALPHABETS])
-        prompt = (
-            f"Analyze the following list of crews ({crew_names_str}) to determine their suitability for successfully completing the task: "
-            f"{overall_goal}. The crews are represented in a JSON object format: {json_data_str}. "
-            "Please provide a ranking of the crews by their names, with the most suitable crew listed first. "
-            "Also, provide a brief critique for each crew, highlighting their strengths and weaknesses."
-        )
+        # Construct the ranking prompt with the necessary csv_file_paths argument
+        prompt = self.construct_ranking_prompt(json_data_str, overall_goal, csv_file_paths)
 
         # Log the entire ranking request
         logging.debug(f"Ranking request:\n{prompt}")
 
-        # Log the token count for the entire ranking request
-        prompt_token_count = count_tokens(prompt)
-        logging.debug(f"Token count for the entire ranking request: {prompt_token_count}")
-
         # Calculate max_response_tokens
-        max_response_tokens = self.openai_max_tokens - prompt_token_count - 200
-        if max_response_tokens < 0:
-            logging.error("The number of tokens in the prompt exceeds the max_tokens limit.")
-            max_response_tokens = 0
-
-        # Log the calculated max_response_tokens
-        logging.debug(f"Max response tokens available for LLM response: {max_response_tokens}")
+        max_response_tokens = self.calculate_max_response_tokens(prompt)
 
         # Make the API call and process the response
         if self.llm_endpoint == 'ollama' and self.ollama:
             ranked_crew = self.ollama.invoke(prompt)
         elif self.llm_endpoint == 'openai' and self.openai_api_key:
-            client = OpenAI(api_key=self.openai_api_key)
-            chat_completion = client.chat.completions.create(model=self.openai_model,
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=max_response_tokens)
-            ranked_crew = chat_completion.choices[0].message.content.strip()
+            ranked_crew = self.get_openai_response(prompt, max_response_tokens)
         else:
             logging.error("Neither OpenAI API key nor Ollama instance is available.")
             return []
 
-        logging.debug(f"Number of tokens in the response: {count_tokens(ranked_crew)}")
+        # Log the raw LLM output
+        logging.debug(f"Raw LLM output for ranking:\n{ranked_crew}")
 
-        ranked_crews.append((concatenated_csv_data, ranked_crew))
+        # Process the response and update the ranking summary
+        ranked_crews, overall_summary = self.process_ranking_response(ranked_crew, concatenated_csv_data, overall_summary, csv_file_paths)
+
+        logging.info("Ranking process completed.")
+        return ranked_crews, overall_summary
+
+    def get_openai_response(self, prompt, max_tokens):
+        client = OpenAI(api_key=self.openai_api_key)
+        chat_completion = client.chat.completions.create(
+            model=self.openai_model,
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=max_tokens
+        )
+        return chat_completion.choices[0].message.content.strip()
+
+    def calculate_max_response_tokens(self, prompt):
+        prompt_token_count = count_tokens(prompt)
+        max_response_tokens = self.openai_max_tokens - prompt_token_count - 200
+        if max_response_tokens < 0:
+            logging.error("The number of tokens in the prompt exceeds the max_tokens limit.")
+            return 0
+        return max_response_tokens
+
+    def concatenate_crew_data(self, csv_file_paths):
+        # Enclose each header cell in double quotes
+        concatenated_csv_data = '"crew_name","role","goal","backstory","assigned_task","allow_delegation"\n'
+        
+        for file_path in csv_file_paths:
+            crew_name, csv_data = self.extract_csv_data(file_path)
+            if csv_data:
+                concatenated_csv_data += csv_data
+                
+        # Log the concatenated CSV data at DEBUG level
+        logging.debug(f"Concatenated CSV Data:\n{concatenated_csv_data}")
+        
+        json_data_str = json.dumps([row for row in csv.DictReader(io.StringIO(concatenated_csv_data))])
+        return concatenated_csv_data, json_data_str
+
+    def extract_csv_data(self, file_path):
+        crew_name = os.path.basename(file_path).split('-')[-1].split('.')[0]
+        if crew_name.lower() not in GREEK_ALPHABETS:
+            logging.debug(f"Skipping file {file_path} as it does not end with a Greek letter.")
+            return None, None
+
+        with open(file_path, 'r') as file:
+            # Read all lines from the file and skip the first two lines (remark and header)
+            csv_lines = file.readlines()[2:]
+            # Check if the file contains more than just the remark and header
+            if not csv_lines:
+                return None, None
+
+            # Format each line with the crew name and remove trailing newlines
+            csv_data_with_crew_name = [f'"{crew_name}",' + line.strip() for line in csv_lines]
+            return crew_name, '\n'.join(csv_data_with_crew_name) + '\n'
+
+
+
+
+    def construct_ranking_prompt(self, json_data_str, overall_goal, csv_file_paths):
+        # Extract crew names from the file paths
+        crew_names = [os.path.basename(path).split('-')[3] for path in csv_file_paths]
+        unique_crew_names = sorted(set(crew_names), key=crew_names.index)  # Remove duplicates and maintain order
+        crew_names_str = ', '.join(unique_crew_names)
+        num_crews = len(unique_crew_names)
+
+        # Correctly format the prompt to include the actual JSON data
+        prompt = (
+            f"There are {num_crews} different crews named {crew_names_str}. "
+            f"Analyze these crews to determine their suitability for successfully completing the task: {overall_goal}. "
+            f"The crews are represented in a JSON object format: {json_data_str}. "  # Ensure json_data_str is not a literal string here
+            "Please provide a ranking of the crews by their names, with the most suitable crew listed first. "
+            "Also, provide a brief critique for each crew, highlighting their strengths and weaknesses."
+        )
+        return prompt
+
+
+
+    def process_ranking_response(self, ranked_crew, concatenated_csv_data, overall_summary, csv_file_paths):
+        ranked_crews = [(concatenated_csv_data, ranked_crew)]
         overall_summary += f'\n\nCrews in the following CSV files were ranked:\n'
         for file_path in csv_file_paths:
             overall_summary += f'{file_path}\n'
         overall_summary += f'\nRanking Summary:\n{ranked_crew}'
-
         return ranked_crews, overall_summary
-        logging.info("Ranking process completed.")  # Add this line to confirm the method has finished
+
     def get_existing_scripts(self, overall_goal):
         # Assuming scripts are stored in a directory named "scripts"
         script_dir = os.path.join(os.getcwd(), "scripts")
@@ -406,7 +424,6 @@ class AutoCrew():
         file_path = os.path.join(directory, file_name)
         with open(file_path, 'w') as file:
             writer = csv.writer(file)
-            writer.writerow(["crew_name", "ranking"])
             for crew_name, ranking in ranked_crews:
                 writer.writerow([crew_name, ranking])
         logging.info(f"\nYour crews have been ranked successfully.\nSee here for details: {file_path}\n")  # Log the full path of the saved ranking CSV
