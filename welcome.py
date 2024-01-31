@@ -12,13 +12,9 @@ import re
 import csv
 import sys
 import textwrap
+from logging_config import flush_log_handlers
 from logging_config import setup_logging
 from core import AutoCrew
-
-
-
-
-
 
 GREEK_ALPHABETS = ["alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta", "iota", "kappa",
                    "lambda", "mu", "nu", "xi", "omicron", "pi", "rho", "sigma", "tau", "upsilon"]
@@ -26,7 +22,6 @@ GREEK_ALPHABETS = ["alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", 
 def truncate_overall_goal(overall_goal, max_length=40):
     """Truncate the overall goal to a maximum length."""
     return overall_goal[:max_length]  # This should return a string
-
 
 def get_ranked_crews(overall_goal):
     """Retrieve the list of ranked crews based on the truncated overall goal."""
@@ -51,9 +46,6 @@ def get_ranked_crews(overall_goal):
 
     return ranked_crews
 
-
-
-
 def log_initial_config(config):
     """Log the initial configuration settings with sensitive information redacted."""
     redacted_config = copy.deepcopy(config)
@@ -76,7 +68,7 @@ def get_input(prompt, default=None, validator=lambda x: True):
             logging.debug(f"Prompt: {prompt.strip()} | User input: {user_input}")
             return user_input
         logging.debug(f"Invalid input: {user_input}")
-        print("Invalid input, please try again.")
+        logging.info("Invalid input, please try again.")
 
 def validate_positive_int(value):
     """Validate if the provided value is a positive integer."""
@@ -92,7 +84,7 @@ def validate_yes_no(value):
 def select_from_list(options, prompt):
     """Allow the user to select an option from a list."""
     for index, option in enumerate(options, start=1):
-        print(f"{index}) {option}")
+        logging.info(f"{index}) {option}")
     while True:
         selection = input(prompt)
         if selection.isdigit() and 0 < int(selection) <= len(options):
@@ -101,12 +93,8 @@ def select_from_list(options, prompt):
             logging.debug(f"Selected option: {selected_option}")
             return selected_option
         logging.debug(f"Invalid input: {selection}")
-        print("Invalid selection, please try again.")
+        logging.info("Invalid selection, please try again.")
 
-
-
-
-# In welcome.py, within the run_autocrew_script function
 def run_autocrew_script(num_alternative_crews, overall_goal, rank_crews):
     # Set environment variables for autocrew.py
     os.environ['LOG_LEVEL'] = 'CONFIG'
@@ -143,24 +131,19 @@ def run_autocrew_script(num_alternative_crews, overall_goal, rank_crews):
         # Clear the environment variable after running
         del os.environ['CALLED_FROM_WELCOME']
 
-
-
-
-
-
 def get_user_selected_crew(ranked_crews):
     """Get the crew selected by the user."""
-    print("Select the crew you wish to run:")
+    logging.info("Select the crew you wish to run:")
     sorted_crews = sorted(ranked_crews.items())
     for letter, crew_name in sorted_crews:
-        print(f"{letter}) {crew_name}")
+        logging.info(f"{letter}) {crew_name}")
 
     while True:
         selected_letter = input("Enter your choice (letter): ").lower()
         if selected_letter in ranked_crews:
             return selected_letter
         else:
-            print("Invalid selection, please try again using the letter of the Greek alphabet.")
+            logging.info("Invalid selection, please try again using the letter of the Greek alphabet.")
 
 def find_script_path(truncated_goal, selected_letter, script_dir):
     """Find the script path based on the truncated goal and selected letter."""
@@ -177,85 +160,31 @@ def execute_script(script_path):
         subprocess.run(['python3', script_path], check=True)
     except subprocess.CalledProcessError as e:
         logging.error(f"An error occurred while executing the script: {e}")
-        print(f"An error occurred while executing the script: {e}")
     except FileNotFoundError:
         logging.error(f"The script file was not found: {script_path}")
-        print(f"The script file was not found: {script_path}")
 
 def handle_ranked_crews(overall_goal):
     ranked_crews = get_ranked_crews(overall_goal)
     if not ranked_crews:
-        logging.debug("No ranked crews available for selection.")
-        print("No ranked crews available for selection.")
+        logging.info("No ranked crews available for selection.")
+        flush_log_handlers()
         return
 
-    print("Select the crew you wish to run:")
-    sorted_crews = sorted(ranked_crews.items())
-    for letter, crew_name in sorted_crews:
-        print(f"{letter}) {crew_name}")
-
-    selected_letter = None
-    while True:
-        selected_letter = input("Enter your choice (letter): ").lower()
-        if selected_letter in ranked_crews:
-            break
-        else:
-            print("Invalid selection, please try again using the letter of the Greek alphabet.")
+    selected_letter = get_user_selected_crew(ranked_crews)
 
     truncated_goal = truncate_overall_goal(overall_goal)
-    greek_name = {'a': 'alpha', 'b': 'beta', 'g': 'gamma'}[selected_letter]  # Mapping letters to full names
+    greek_name = {'a': 'alpha', 'b': 'beta', 'g': 'gamma'}[selected_letter]
 
-    script_pattern = re.compile(rf"crewai-autocrew-\d{{8}}-\d{{6}}-{truncated_goal}-{greek_name}\.py$")
     script_dir = os.path.join(os.getcwd(), "scripts")
-    script_path = None
-
-    for file_name in os.listdir(script_dir):
-        if script_pattern.match(file_name):
-            script_path = os.path.join(script_dir, file_name)
-            break
+    script_path = find_script_path(truncated_goal, greek_name, script_dir)
 
     if not script_path:
-        logging.error(f"No script file found for the selected crew: {ranked_crews[selected_letter]}")
-        print(f"No script file found for the selected crew: {ranked_crews[selected_letter]}")
+        logging.info(f"No script file found for the selected crew: {ranked_crews[selected_letter]}")
+        flush_log_handlers()
         return
 
-    try:
-        subprocess.run(['python3', script_path], check=True)
-    except subprocess.CalledProcessError as e:
-        logging.error(f"An error occurred while executing the script: {e}")
-        print(f"An error occurred while executing the script: {e}")
-    except FileNotFoundError:
-        logging.error(f"The script file was not found: {script_path}")
-        print(f"The script file was not found: {script_path}")
-
-
-    for file_name in os.listdir(script_dir):
-        if script_pattern.match(file_name):
-            script_path = os.path.join(script_dir, file_name)
-            break
-
-    if not script_path:
-        logging.error(f"No script file found for the selected crew: {ranked_crews[selected_letter]}")
-        logging.error(f"Expected script filename pattern: {script_pattern.pattern}")
-        logging.error(f"Script directory: {script_dir}")
-        logging.error(f"Available files: {os.listdir(script_dir)}")
-        return
-
-    # Execute the selected script
-    try:
-        logging.debug(f"Executing script: {script_path}")
-        subprocess.run(['python3', script_path], check=True)
-    except subprocess.CalledProcessError as e:
-        logging.error(f"An error occurred while executing the script: {e}")
-        print(f"An error occurred while executing the script: {e}")
-    except FileNotFoundError:
-        logging.error(f"The script file was not found: {script_path}")
-        print(f"The script file was not found: {script_path}")
-
-
-
-
-
+    execute_script(script_path)
+    flush_log_handlers()
 
 def save_configuration(config):
     """Save the current configuration to the config.ini file."""
@@ -281,7 +210,6 @@ def choose_openai_model(config):
         return get_input("Enter the OpenAI model: ")
     else:
         return choice
-
 
 def handle_openai_api_key(config):
     """Handle the OpenAI API key based on user input."""
@@ -340,7 +268,6 @@ def choose_llm_endpoint_and_model(config):
 
     return llm_endpoint, openai_model
 
-
 def clear_screen_and_logfile(logfile):
     """Clear the screen and the log file."""
     # Clear the screen
@@ -349,89 +276,6 @@ def clear_screen_and_logfile(logfile):
     # Clear the log file
     with open(logfile, 'w'):
         pass
-def print_ranking_csv(overall_goal):
-    """Print the contents of the ranking CSV file to the console."""
-    script_dir = os.path.join(os.getcwd(), "scripts")
-    truncated_goal = truncate_overall_goal(overall_goal)
-    pattern = re.compile(rf"crewai-autocrew-\d{{8}}-\d{{6}}-{truncated_goal}-ranking\.csv$")
-
-    # Find the ranking CSV file
-    for file_name in os.listdir(script_dir):
-        if pattern.match(file_name):
-            ranking_csv_path = os.path.join(script_dir, file_name)
-            break
-    else:
-        logging.error("Ranking CSV file not found.")
-        return
-
-    # Print the contents of the CSV file
-    try:
-        with open(ranking_csv_path, 'r') as csv_file:
-            reader = csv.reader(csv_file)
-            for row in reader:
-                print(','.join(row))
-    except Exception as e:
-        logging.error(f"Error reading CSV file: {e}")
-
-def print_ranking_csv(overall_goal):
-    """Print the contents of the ranking CSV file to the console."""
-    script_dir = os.path.join(os.getcwd(), "scripts")
-    truncated_goal = truncate_overall_goal(overall_goal)
-    pattern = re.compile(rf"crewai-autocrew-\d{{8}}-\d{{6}}-{truncated_goal}-ranking\.csv$")
-
-    # Find the ranking CSV file
-    for file_name in os.listdir(script_dir):
-        if pattern.match(file_name):
-            ranking_csv_path = os.path.join(script_dir, file_name)
-            break
-    else:
-        logging.error("Ranking CSV file not found.")
-        return
-
-    # Print the contents of the CSV file
-    try:
-        with open(ranking_csv_path, 'r') as csv_file:
-            reader = csv.reader(csv_file)
-            for row in reader:
-                print(','.join(row))
-    except Exception as e:
-        logging.error(f"Error reading CSV file: {e}")
-        
-
-def wrap_text(text, width):
-    """Wrap text for a given width."""
-    return textwrap.fill(text, width)
-
-def get_max_widths(headers, data, max_cell_width):
-    """Determine the maximum width of each column."""
-    widths = [min(len(header), max_cell_width) for header in headers]
-    for row in data:
-        for index, cell in enumerate(row):
-            cell_lines = wrap_text(cell, max_cell_width).split('\n')
-            max_line_length = max(len(line) for line in cell_lines)
-            widths[index] = max(widths[index], min(max_line_length, max_cell_width))
-    return widths
-
-def print_table(headers, data, widths):
-    """Print the table with headers and data."""
-    # Print header
-    header_row = " | ".join(header.ljust(width) for header, width in zip(headers, widths))
-    print(header_row)
-    print("-" * len(header_row))
-
-    # Print rows
-    for row in data:
-        wrapped_rows = [wrap_text(cell, width).split('\n') for cell, width in zip(row, widths)]
-        max_rows = max(len(wrapped_row) for wrapped_row in wrapped_rows)
-
-        for i in range(max_rows):
-            print_row = []
-            for wrapped_row in wrapped_rows:
-                if i < len(wrapped_row):
-                    print_row.append(wrapped_row[i].ljust(widths[wrapped_rows.index(wrapped_row)]))
-                else:
-                    print_row.append(" " * widths[wrapped_rows.index(wrapped_row)])
-            print(" | ".join(print_row))
 
 def print_ranking_csv(overall_goal, max_cell_width=20):
     """Print the contents of the ranking CSV file as a table to the console with word wrapping."""
@@ -460,10 +304,8 @@ def print_ranking_csv(overall_goal, max_cell_width=20):
     except Exception as e:
         logging.error(f"Error reading CSV file: {e}")
 
-
 def main():
-    # Configure logging at the start of the application
-    setup_logging(log_file='autocrew.log')
+    setup_logging()
     config = configparser.ConfigParser()
     config.read('config.ini')
     log_initial_config(config)  # Log the initial config settings
@@ -501,6 +343,3 @@ def main():
 if __name__ == "__main__":
     clear_screen_and_logfile('autocrew.log')
     main()
-
-
-
