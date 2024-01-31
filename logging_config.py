@@ -15,14 +15,13 @@ def setup_logging(log_file='autocrew.log'):
         file_handler.setFormatter(file_formatter)
 
         console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.INFO)  # Set level directly here
+        console_handler.setLevel(logging.INFO)
         console_formatter = logging.Formatter('%(message)s')
         console_handler.setFormatter(console_formatter)
 
         logger.addHandler(file_handler)
         logger.addHandler(console_handler)
         logging.getLogger('httpx').setLevel(logging.WARNING)
-
         
 def flush_log_handlers():
     for handler in logging.getLogger().handlers:
