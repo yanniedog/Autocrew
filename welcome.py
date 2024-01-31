@@ -117,8 +117,8 @@ def run_autocrew_script(num_alternative_crews, overall_goal, rank_crews):
             logging.error("Autocrew script returned a non-zero exit code.")
             return False
 
-        if print_ranking_csv_needed and rank_crews:
-            print_ranking_csv(overall_goal)
+        ##### if print_ranking_csv_needed and rank_crews:
+        #####    print_ranking_csv(overall_goal)
 
         return True
 
@@ -277,8 +277,8 @@ def clear_screen_and_logfile(logfile):
     with open(logfile, 'w'):
         pass
 
-def print_ranking_csv(overall_goal, max_cell_width=20):
-    """Print the contents of the ranking CSV file as a table to the console with word wrapping."""
+def print_ranking_csv(overall_goal):
+    """Print and log the contents of the ranking CSV file line by line."""
     script_dir = os.path.join(os.getcwd(), "scripts")
     truncated_goal = truncate_overall_goal(overall_goal)
     pattern = re.compile(rf"crewai-autocrew-\d{{8}}-\d{{6}}-{truncated_goal}-ranking\.csv$")
@@ -289,20 +289,42 @@ def print_ranking_csv(overall_goal, max_cell_width=20):
             ranking_csv_path = os.path.join(script_dir, file_name)
             break
     else:
-        logging.error("Ranking CSV file not found.")
+        log_message = "Ranking CSV file not found."
+        logging.error(log_message)
+        print(log_message)
         return
 
     try:
         with open(ranking_csv_path, 'r') as csv_file:
             reader = csv.reader(csv_file)
-            headers = next(reader)
-            data = list(reader)
-
-            widths = get_max_widths(headers, data, max_cell_width)
-            print_table(headers, data, widths)
+            for row in reader:
+                line = ", ".join(row)
+                logging.info(line)  # Log the line
+                print(line)  # Print the line
 
     except Exception as e:
-        logging.error(f"Error reading CSV file: {e}")
+        log_message = f"Error reading CSV file: {e}"
+        logging.error(log_message)
+        print(log_message)
+
+
+
+def get_max_widths(headers, data, max_width):
+    """Calculate the maximum width for each column."""
+    widths = [min(len(str(header)), max_width) for header in headers]
+    for row in data:
+        for i, cell in enumerate(row):
+            widths[i] = min(max(widths[i], len(str(cell))), max_width)
+    return widths
+
+def print_table(headers, data, widths):
+    """Print the table with given headers, data, and column widths."""
+    header_row = "|".join(str(header).ljust(width) for header, width in zip(headers, widths))
+    print(header_row)
+    print("-" * len(header_row))
+    for row in data:
+        print("|".join(str(cell).ljust(width) for cell, width in zip(row, widths)))
+
 
 def main():
     setup_logging()

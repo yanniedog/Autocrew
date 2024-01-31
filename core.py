@@ -399,8 +399,13 @@ class AutoCrew():
         overall_summary += f'\n\nCrews in the following CSV files were ranked:\n'
         for file_path in csv_file_paths:
             overall_summary += f'{file_path}\n'
+
+        # Inserting an empty line between the final row of the concatenated CSV and the beginning of the ranking response
+        overall_summary += '\n'
+
         overall_summary += f'\nRanking Summary:\n{ranked_crew}'
         return ranked_crews, overall_summary
+
 
     def get_existing_scripts(self, overall_goal):
         # Assuming scripts are stored in a directory named "scripts"
@@ -424,11 +429,15 @@ class AutoCrew():
         if not os.path.exists(directory):
             os.makedirs(directory)
         file_path = os.path.join(directory, file_name)
-        with open(file_path, 'w') as file:
-            writer = csv.writer(file)
-            for crew_name, ranking in ranked_crews:
-                writer.writerow([crew_name, ranking])
-        logging.info(f"\nYour crews have been ranked successfully.\nSee here for details: {file_path}\n")  # Log the full path of the saved ranking CSV
+
+        with open(file_path, 'w', newline='') as file:  # Ensure newline='' for correct line handling
+            writer = csv.writer(file, quoting=csv.QUOTE_NONNUMERIC)  # Use QUOTE_NONNUMERIC to quote only non-numeric fields
+            for _, ranking in ranked_crews:
+                writer.writerow([ranking])  # Writing only the ranking information to the CSV
+
+        logging.info(f"\nYour crews have been ranked successfully.\nSee here for details: {file_path}\n")
+
+
     
     def log_config_with_redacted_api_keys(self):
         # Create a copy of the config to redact API keys

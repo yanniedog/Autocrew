@@ -304,7 +304,7 @@ def handle_ranking(args, autocrew, truncated_overall_goal, csv_file_paths):
                 sys.exit(1)
 
             ranked_crews, overall_summary = autocrew.rank_crews(csv_file_paths, args.overall_goal, args.v)
-            logging.debug(f"Ranking prompt:\n{overall_summary}\n")
+            logging.info(f"Ranking prompt:\n{overall_summary}\n")
             autocrew.save_ranking_output(ranked_crews, truncated_overall_goal)
             logging.info("Ranking process completed.")
 
