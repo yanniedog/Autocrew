@@ -374,21 +374,23 @@ class AutoCrew():
 
 
     def construct_ranking_prompt(self, json_data_str, overall_goal, csv_file_paths):
-        # Extract crew names from the file paths
-        crew_names = [os.path.basename(path).split('-')[3] for path in csv_file_paths]
+        # Extract crew names from the end of the file paths
+        crew_names = [os.path.basename(path).split('-')[-1].split('.')[0] for path in csv_file_paths]
         unique_crew_names = sorted(set(crew_names), key=crew_names.index)  # Remove duplicates and maintain order
         crew_names_str = ', '.join(unique_crew_names)
         num_crews = len(unique_crew_names)
 
-        # Correctly format the prompt to include the actual JSON data
+        # Construct the ranking prompt
         prompt = (
             f"There are {num_crews} different crews named {crew_names_str}. "
             f"Analyze these crews to determine their suitability for successfully completing the task: {overall_goal}. "
-            f"The crews are represented in a JSON object format: {json_data_str}. "  # Ensure json_data_str is not a literal string here
+            f"The crews are represented in a JSON object format: {json_data_str}. "
             "Please provide a ranking of the crews by their names, with the most suitable crew listed first. "
             "Also, provide a brief critique for each crew, highlighting their strengths and weaknesses."
         )
         return prompt
+
+
 
 
 
