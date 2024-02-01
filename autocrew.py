@@ -13,7 +13,7 @@ AUTOCREW_VERSION = "3.1.0"
 import argparse
 import configparser
 import copy
-import csv
+#import csv
 import io
 import json
 import logging
@@ -277,35 +277,35 @@ def handle_config_update(args):
         update_config_file_with_params(config_dict, write_to_file=args.w)
 
 def generate_and_run_scripts(args, autocrew, truncated_overall_goal):
-    csv_file_paths = []  # Initialize csv_file_paths
+    json_file_paths = []  # Initialize json_file_paths
     num_scripts_to_generate = 1 if not args.m else args.m
     no_script_generation_params = any([args.c, args.h, args.d, args.u])
     if not no_script_generation_params:
         try:
             logging.info(f"Generating {num_scripts_to_generate} alternative scripts...")
-            csv_file_paths = autocrew.generate_scripts(truncated_overall_goal, num_scripts_to_generate)
+            json_file_paths = autocrew.generate_scripts(truncated_overall_goal, num_scripts_to_generate)
 
             if args.a:
-                for path in csv_file_paths:
-                    script_path = path.replace('.csv', '.py')
+                for path in json_file_paths:
+                    script_path = path.replace('.json', '.py')
                     subprocess.run([sys.executable, script_path])
         except Exception as e:
             logging.exception("An error occurred during script generation.")
             sys.exit(1)
-    return csv_file_paths
+    return json_file_paths
 
-def handle_ranking(args, autocrew, truncated_overall_goal, csv_file_paths):
+def handle_ranking(args, autocrew, truncated_overall_goal, json_file_paths):
     if args.r:
         try:
             logging.info("Ranking process initiated.")
-            if not csv_file_paths:
-                csv_file_paths = autocrew.get_existing_scripts(truncated_overall_goal)
+            if not json_file_paths:
+                json_file_paths = autocrew.get_existing_scripts(truncated_overall_goal)
 
-            if not csv_file_paths:
+            if not json_file_paths:
                 logging.error("No existing scripts found to rank.")
                 sys.exit(1)
 
-            ranked_crews, overall_summary = autocrew.rank_crews(csv_file_paths, args.overall_goal, args.v)
+            ranked_crews, overall_summary = autocrew.rank_crews(json_file_paths, args.overall_goal, args.v)
             logging.info(f"Ranking prompt:\n{overall_summary}\n")
             autocrew.save_ranking_output(ranked_crews, truncated_overall_goal)
             logging.info("Ranking process completed.")
@@ -315,7 +315,8 @@ def handle_ranking(args, autocrew, truncated_overall_goal, csv_file_paths):
             sys.exit(1)
 
 def generate_startup_message(latest_version, version_message):
-    startup_message = ("\nWelcome to AutoCrew!\n" +
+    startup_message = (f"\nAutoCrew version: {AUTOCREW_VERSION}\n" +
+                       f"{version_message}\n\n" +
                        "Use the -? or -h command line options to display help information.\n" +
                        "Settings can be modified within \"config.ini\". Scripts are saved in the \"scripts\" subdirectory.\n" +
                        "If you experience any errors, please create an issue on Github and attach \"autocrew.log\":\n" +
@@ -405,8 +406,8 @@ def main():
         truncated_overall_goal = truncate_overall_goal(args.overall_goal, max_length)
 
         # Script Generation and Ranking Process
-        csv_file_paths = generate_and_run_scripts(args, autocrew, truncated_overall_goal)
-        handle_ranking(args, autocrew, truncated_overall_goal, csv_file_paths)
+        json_file_paths = generate_and_run_scripts(args, autocrew, truncated_overall_goal)
+        handle_ranking(args, autocrew, truncated_overall_goal, json_file_paths)
 
     except Exception as e:
         logging.exception("An unexpected error occurred: %s", str(e))
