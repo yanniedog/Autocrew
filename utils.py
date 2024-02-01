@@ -201,7 +201,10 @@ def write_crewai_script(agents_json, file_name, llm_endpoint_within_generated_sc
         openai_model (str): OpenAI model setting.
     """
     # Extract a list of roles
-    crew_tasks = [agent['role'] for agent in agents_json[0]]
+    try:
+        crew_tasks = [agent['role'] for agent in agents_json[0]]
+    except KeyError:
+        raise ValueError('Role component missing in json data')
 
     script_directory = "scripts"
     script_file_path = os.path.join(script_directory, file_name)
