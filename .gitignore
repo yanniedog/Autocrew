@@ -1,3 +1,15 @@
+*.bak
+*.csv
+*.pyc
+.autocrew_update/*.*
+.autocrew_update
+.backup/*.*
+.backup
+autocrew.log
+config.ini
+scripts/*.*
+.vscode/*.*
+autocrew_update/
 *.csv
 Inactive/*.*
 crewai-autocrew-202*.*
@@ -6,5 +18,3 @@ crewai-autocrew-202*.*
 *.ini
 .vscode/settings.json
 test.py
-config.ini
-config.ini
