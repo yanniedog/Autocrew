@@ -18,3 +18,5 @@ crewai-autocrew-202*.*
 *.ini
 .vscode/settings.json
 test.py
+
+config.ini

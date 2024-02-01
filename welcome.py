@@ -12,6 +12,8 @@ import re
 import csv
 import sys
 import textwrap
+from autocrew import check_latest_version, generate_startup_message
+
 from logging_config import flush_log_handlers
 from logging_config import setup_logging
 from core import AutoCrew
@@ -106,11 +108,12 @@ def run_autocrew_script(num_alternative_crews, overall_goal, rank_crews):
         # Start the subprocess and get the output in real-time
         with subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True) as process:
             print_ranking_csv_needed = False
-            for line in process.stdout:
-                print(line, end='')
-                logging.debug(line.strip())  # Log to file
-                if "See here for details:" in line:
-                    print_ranking_csv_needed = True
+            if process.stdout is not None:
+                for line in process.stdout:
+                    print(line, end='')
+                    logging.debug(line.strip())  # Log to file
+                    if "See here for details:" in line:
+                        print_ranking_csv_needed = True
 
         # Check the return code to determine if the subprocess was successful
         if process.returncode != 0:
@@ -330,7 +333,15 @@ def main():
     setup_logging()
     config = configparser.ConfigParser()
     config.read('config.ini')
-    log_initial_config(config)  # Log the initial config settings
+    log_initial_config(config)
+
+    # Check for the latest version and generate startup message
+    latest_version, version_message = check_latest_version()
+    startup_message = generate_startup_message(latest_version, version_message)
+    logging.info(startup_message)
+
+    # Rest of your existing code...
+
 
     overall_goal = get_input("Please specify your overall goal: ")
     
