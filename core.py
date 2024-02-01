@@ -205,13 +205,13 @@ class AutoCrew():
             return ""
 
     def generate_scripts(self, overall_goal, num_scripts):
-        json_file_paths = []
+        csv_file_paths = []
         for i in range(num_scripts):
             crew_name = get_next_crew_name(overall_goal)  # Get the next available crew name
             logging.info(f"\nGenerating crew {i + 1} of {num_scripts} ('{crew_name}' crew)...")
             file_path = self.generate_single_script(i, num_scripts, overall_goal, crew_name)
-            json_file_paths.append(file_path)
-        return json_file_paths
+            csv_file_paths.append(file_path)
+        return csv_file_paths
 
         
     def generate_single_script(self, i, num_scripts, overall_goal, crew_name):
@@ -228,6 +228,28 @@ class AutoCrew():
             truncated_goal = overall_goal[:self.overall_goal_truncation_for_filenames].replace(" ", "-")
             timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
             file_name = f'crewai-autocrew-{timestamp}-{truncated_goal}-{greek_suffix}.py'
+            #team_info = agents_data.get("team", {})
+            """_summary_
+j
+[[{'role': 'TeamLead', 'goal': 'Oversee and coordinate activities of team members to ensure efficient progress towards creating the chess program in C++.', 'backstory': 'Senior software engineer with extensive experience in leading development teams. Has a deep understanding of C++ and chess algorithms.', 'assigned_task': 'Design the overall architecture of the chess program, manage project timeline, and assign tasks to team members based on their strengths.', 'allow_delegation': True}, {'role': 'Chess Algorithm Designer', 'goal': 'Develop advanced chess algorithms for the engine that will allow our program to make intelligent moves and strategies.', 'backstory': 'A brilliant mathematician with a strong background in game theory and computer science. Has published research on optimizing chess algorithms.', 'assigned_task': 'Research and implement advanced search algorithms, create opening book, and develop endgame tablebases.', 'allow_delegation': False}, {'role': 'C++ Programmer', 'goal': 'Write high-performance C++ code for the chess engine based on designs provided by team members.', 'backstory': 'Experienced C++ developer with a strong foundation in data structures and algorithms. Has worked on complex software projects in the past.', 'assigned_task': 'Implement search algorithms, design data structures, optimize code for performance.', 'allow_delegation': True}, {'role': 'GUI Designer', 'goal': 'Create an intuitive and visually appealing graphical user interface for the chess program.', 'backstory': 'An accomplished graphic designer with a passion for creating interfaces that are both aesthetically pleasing and user-friendly.', 'assigned_task': 'Design the look and feel of the chess board, create a menu system, and integrate the graphics into the engine.', 'allow_delegation': False}, {'role': 'Quality Assurance Tester', 'goal': 'Perform thorough testing of the chess program to identify and report any bugs or issues.', 'backstory': 'A detail-oriented individual with a strong background in software testing and debugging. Has a knack for finding even the most obscure bugs.', 'assigned_task': 'Create test cases, perform regression testing, and document bugs found.', 'allow_delegation': True}]]
+>>> j[0][0]
+{'role': 'TeamLead', 'goal': 'Oversee and coordinate activities of team members to ensure efficient progress towards creating the chess program in C++.', 'backstory': 'Senior software engineer with extensive experience in leading development teams. Has a deep understanding of C++ and chess algorithms.', 'assigned_task': 'Design the overall architecture of the chess program, manage project timeline, and assign tasks to team members based on their strengths.', 'allow_delegation': True}
+>>> j[0][0]['role']
+'TeamLead'
+>>> j[0][1]['role']
+'Chess Algorithm Designer'
+
+            Returns:
+                _type_: _description_
+            """
+            # Generate crew tasks based on the agents_data
+            
+            
+            #print(roles)
+            #print(roles[0])
+            #print(roles[1])
+            
+
             # Call the standalone function with the necessary parameters
             write_crewai_script(
                 agents_json,                
@@ -242,16 +264,12 @@ class AutoCrew():
             )
             return file_path
 
-        max_attempts = 3
-        for i in range(max_attempts):
-            # Fetch the response from the LLM using the detailed instruction        
-            response_json = self.get_agent_data(overall_goal, ',')
-            if (response_json):
-                break;
+        # Fetch the response from the LLM using the detailed instruction
+        response_json = self.get_agent_data(overall_goal, ',')
 
         # Process the LLM response
         if not response_json:
-            logging.error(f'No response from LLM after {max_attempts} attempts.')
+            logging.error('No response from LLM')
             raise ValueError("Failed to get valid response from LLM.")
 
         try:
