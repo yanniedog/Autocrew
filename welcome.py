@@ -12,6 +12,8 @@ import re
 import csv
 import sys
 import textwrap
+import ollama
+
 from autocrew import check_latest_version, generate_startup_message
 
 from logging_config import flush_log_handlers
@@ -248,8 +250,9 @@ def choose_llm_endpoint_and_model(config):
         openai_model = choose_openai_model(config)
         config.set('OPENAI_CONFIG', 'openai_model', openai_model)  # Update the config object
         handle_openai_api_key(config)
-    else:
-        ollama_model = get_input("Enter the Ollama model: ")
+    elif llm_endpoint == 'ollama':
+        # Call the function from ollama.py here
+        ollama_model = ollama.main()  # This should return the selected model
         config.set('OLLAMA_CONFIG', 'llm_model', ollama_model)  # Update the config object
         openai_model = ollama_model  # For consistency in the return statement
 
@@ -339,9 +342,6 @@ def main():
     latest_version, version_message = check_latest_version()
     startup_message = generate_startup_message(latest_version, version_message)
     logging.info(startup_message)
-
-    # Rest of your existing code...
-
 
     overall_goal = get_input("Please specify your overall goal: ")
     

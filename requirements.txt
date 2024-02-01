@@ -10,3 +10,6 @@ requests>=2.25.1
 langchain-community>=0.1.0
 crewai>=0.1.32
 packaging>=20.9
+beautifulsoup4
+tqdm
+
