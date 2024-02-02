@@ -62,63 +62,14 @@ def parse_json_data(response, delimiter=',', filename=''):
     Raises:
         ValueError: If the json data is not found, incomplete, or incorrectly formatted.
     """
-    # Regex pattern to extract json data
-    return response
-    json_pattern = r'("role","goal","backstory","assigned_task","allow_delegation".*?)(?:```|$)'
-    match = re.search(json_pattern, response, re.DOTALL)
-    if not match:
-        logging.error("CSV data not found in the response.")
-        raise ValueError('CSV data not found in the response')
-
-    csv_data = match.group(1).strip()  # Remove any extra whitespace
-    logging.debug(f"Extracted CSV data for parsing:\n{csv_data}")
-
-    # Define the expected header fields
-    header = ['role', 'goal', 'backstory', 'assigned_task', 'allow_delegation']
-    agents_data = []
-
-    # Parse the CSV data
     try:
-        csv_reader = csv.reader(io.StringIO(csv_data), delimiter=delimiter)
-        lines = list(csv_reader)
-    except csv.Error as e:
-        logging.error(f"Error reading CSV data: {e}")
-        raise ValueError('Error parsing CSV data') from e
+        # Load and parse the JSON
+        json_data = json.loads(response)
+        return json_data
+    except json.JSONDecodeError as e:
+        print(f"Error decoding JSON: {e}")
+    return None
 
-    # Validate if the header and at least one line of data exist
-    if len(lines) < 2:
-        logging.error("CSV data is empty or missing required lines.")
-        raise ValueError('CSV data is empty or incomplete')
-
-    # Validate and extract headers
-    header_line = lines[0]
-    header_indices = {h.lower(): i for i, h in enumerate(header_line)}
-    for required_header in header:
-        if required_header not in header_indices:
-            logging.error(f'Missing required header "{required_header}" in CSV data')
-            raise ValueError(f'Missing required header "{required_header}"')
-
-    # Process each line of the CSV
-    for line in lines[1:]:
-        agent_data = {}
-        for header_name in header:
-            header_index = header_indices.get(header_name.lower())
-            if header_index is not None and header_index < len(line):
-                agent_data[header_name] = line[header_index].strip('"').strip()
-            else:
-                logging.error(f'Missing or incomplete data for "{header_name}" in line: {line}')
-                raise ValueError(f'Missing or incomplete data for "{header_name}"')
-
-        # Additional validation can be added here as needed
-        if 'role' not in agent_data or not agent_data['role']:
-            logging.error('Role component missing in a line of CSV data')
-            raise ValueError('Role component missing in CSV data')
-
-        agent_data['filename'] = filename
-        agents_data.append(agent_data)
-
-    logging.debug(f"Successfully parsed {len(agents_data)} agents from json data.")
-    return agents_data
 
 def read_json_from_file(file_path):
     try:
@@ -151,23 +102,23 @@ def save_json_output(json_response, overall_goal, script_directory="scripts", tr
     return file_path
 
 def extract_json_from_placeholder(placeholder_text):
-        # Define a regular expression to find JSON content within triple backticks
-        json_pattern = re.compile(r'```json(.*?)```', re.DOTALL)
+    # Define a regular expression to find JSON content within triple backticks
+    json_pattern = re.compile(r'```json(.*?)```', re.DOTALL)
 
-        # Find all JSON matches in the text
-        json_matches = json_pattern.findall(placeholder_text)
+    # Find all JSON matches in the text
+    json_matches = json_pattern.findall(placeholder_text)
 
-        # Process each JSON match
-        extracted_json = []
-        for json_match in json_matches:
-            try:
-                # Load and parse the JSON
-                json_data = json.loads(json_match)
-                extracted_json.append(json_data)
-            except json.JSONDecodeError as e:
-                print(f"Error decoding JSON: {e}")
+    # Process each JSON match
+    extracted_json = []
+    for json_match in json_matches:
+        try:
+            # Load and parse the JSON
+            json_data = json.loads(json_match.strip())  # strip() is used to remove leading/trailing white spaces
+            extracted_json.append(json_data)
+        except json.JSONDecodeError as e:
+            print(f"Error decoding JSON: {e}")
 
-        return extracted_json
+    return extracted_json
     
 
 

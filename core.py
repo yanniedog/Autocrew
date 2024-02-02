@@ -146,16 +146,16 @@ class AutoCrew():
         
         # Construct the instruction including the overall_goal
         instruction = (
-            f'Create a dataset in json format for a list of agents'
+            f'Create a dataset in json format for a list of agents '
             f'The file will be in the format of a python dictionary with the columns "role", "goal", "backstory", "assigned_task", "allow_delegation". '
             f'The Overall goal for all the agents are "{overall_goal}". '
             f'You need to design agents that will work effectively and collaboratively to achieve the team goal successfully. '
             f'Agents are identified by their role. You must provide each agent in your team the title of their role, '
             f'their individual goal within the team, their personal backstory and individual skillset, '
-            f'specific details of a task assigned to them which will help ensure the team goal is completed successfully,'
+            f'specific details of a task assigned to them which will help ensure the team goal is completed successfully, '
             f'and whether or not the agent is permitted to delegate certain duties to other agents (True/False). '
             f'Your dataset must contain the columns "role", "goal", "backstory", "assigned_task", "allow_delegation". '            
-            )
+        )
         
         # Calculate the number of tokens in the complete instruction
         instruction_tokens = count_tokens(instruction)
@@ -203,6 +203,7 @@ class AutoCrew():
         except Exception as e:
             logging.error(f"Error in API call: {e}")
             return ""
+
 
     def generate_scripts(self, overall_goal, num_scripts):
         json_file_paths = []

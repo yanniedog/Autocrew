@@ -20,3 +20,6 @@ crewai-autocrew-202*.*
 test.py
 
 config.ini
+config.ini
+*.txt
+merge.py

@@ -294,6 +294,7 @@ def generate_and_run_scripts(args, autocrew, truncated_overall_goal):
             sys.exit(1)
     return json_file_paths
 
+
 def handle_ranking(args, autocrew, truncated_overall_goal, json_file_paths):
     if args.r:
         try:
@@ -393,8 +394,14 @@ def main():
         # Update config if specified
         handle_config_update(args)
 
+        # Initialize AutoCrew object
         autocrew = AutoCrew()
-        autocrew.log_config_with_redacted_api_keys()
+        
+        # Check if log_config_with_redacted_api_keys() method exists in AutoCrew class
+        if hasattr(autocrew, 'log_config_with_redacted_api_keys'):
+            autocrew.log_config_with_redacted_api_keys()
+        else:
+            logging.warning("log_config_with_redacted_api_keys() method is not available in AutoCrew class.")
 
         if not args.overall_goal:
             args.overall_goal = input("Please set the overall goal for your crew: ")
@@ -412,9 +419,10 @@ def main():
     except Exception as e:
         logging.exception("An unexpected error occurred: %s", str(e))
         sys.exit(1)
-    logging.info("AutoCrew script finished successfully")
-    sys.exit(0)
 
+    logging.info("AutoCrew script finished successfully")
+
+# Ensure to call the main function
 if __name__ == '__main__':
     try:
         main()
