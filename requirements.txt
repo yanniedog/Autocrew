@@ -7,7 +7,6 @@ packaging>=23.2
 Requests>=2.31.0
 tiktoken>=0.5.2
 requests>=2.25.1
-langchain-community>=0.1.0
 crewai>=0.1.32
 packaging>=20.9
 beautifulsoup4
