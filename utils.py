@@ -261,8 +261,8 @@ def write_agents_and_tasks(file, agents_json):
     # Extract a list of roles
     roles = [agent['role'] for agent in agents_json[0]]
 
-    for agent in agents_json[0]:
-        agent_var_name = agent['role'].replace(' ', '_').replace('-', '_').replace('.', '_')
+    for agent in agents_data:
+        agent_var_name = agent['role'].replace(' ', '_').replace('-', '_').replace('.', '_').replace('/', '_')
         crew_agents.append(f'agent_{agent_var_name}')
         
         file.write(f'agent_{agent_var_name} = Agent(\n')
