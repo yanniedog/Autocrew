@@ -1,34 +1,43 @@
-import subprocess
-import time
-import re
+import configparser
+import requests
 
-# Define the port to create a tunnel to
-port = 80
+# Function to read ngrok API key from config.ini
+def get_ngrok_api_key(config_file='config.ini'):
+    config = configparser.ConfigParser()
+    config.read(config_file)
+    return config.get('AUTHENTICATORS', 'ngrok_api_key')
 
-# Start an Ngrok tunnel to the specified port and capture the output
-ngrok_process = subprocess.Popen(["ngrok", "http", str(port)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+# Function to get the ngrok tunnel information using the ngrok API
+def get_ngrok_tunnels(api_key):
+    headers = {
+        'Authorization': f'Bearer {api_key}',
+        'Ngrok-Version': '2'
+    }
+    response = requests.get('https://api.ngrok.com/tunnels', headers=headers)
+    if response.status_code == 200:
+        return response.json()['tunnels']
+    else:
+        raise Exception(f"Error retrieving tunnels: {response.text}")
 
-# Wait for a few seconds to ensure the tunnel is established
-time.sleep(5)
+# Function to extract the public URL from the tunnel information
+def get_public_url(tunnels):
+    for tunnel in tunnels:
+        if tunnel['proto'] == 'https':  # Assuming you want the HTTPS URL
+            return tunnel['public_url']
+    return None
 
-# Try to find the Ngrok URL from the process output
-ngrok_url = None
-if ngrok_process.stdout:
-    for line in ngrok_process.stdout:
-        match = re.search(r"https://[0-9a-z-]+\.ngrok.io", line.decode("utf-8"))
-        if match:
-            ngrok_url = match.group(0)
-            break
+# Main function to execute the script
+def main():
+    try:
+        ngrok_api_key = get_ngrok_api_key()
+        tunnels = get_ngrok_tunnels(ngrok_api_key)
+        public_url = get_public_url(tunnels)
+        if public_url:
+            print(f"Ngrok public URL: {public_url}")
+        else:
+            print("No public HTTPS tunnels found.")
+    except Exception as e:
+        print(f"An error occurred: {e}")
 
-if ngrok_url:
-    print("Ngrok URL:", ngrok_url)
-else:
-    print("Failed to obtain Ngrok URL")
-
-try:
-    # Keep the script running to keep the tunnel open
-    while True:
-        time.sleep(1)
-except KeyboardInterrupt:
-    # Terminate the Ngrok process when you stop the script
-    ngrok_process.terminate()
+if __name__ == "__main__":
+    main()
