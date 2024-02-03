@@ -243,7 +243,7 @@ def write_agents_and_tasks(file, agents_data):
     task_vars, crew_agents = [], []
 
     for agent in agents_data:
-        agent_var_name = agent['role'].replace(' ', '_').replace('-', '_').replace('.', '_')
+        agent_var_name = agent['role'].replace(' ', '_').replace('-', '_').replace('.', '_').replace('/', '_')
         crew_agents.append(f'agent_{agent_var_name}')
         
         file.write(f'agent_{agent_var_name} = Agent(\n')

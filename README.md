@@ -1,80 +1,111 @@
-<<<<<<< Updated upstream
-# Autocrew for CrewAI
+# Autocrew: Where AI Builds Itself
 
-This script automates the process of creating a CrewAI team with agents, tasks, and tools, using the Ollama language model to generate the required data in CSV format. The script then parses the CSV data, defines agents and tasks, and writes a CrewAI script that can be executed to run the generated team.
+Autocrew is a Python script designed to simplify the process of generating scripts for [CrewAI](https://github.com/joaomdmoura/crewAI), a collaborative language AI platform. It automates the creation of CrewAI agent and task scripts based on your specified overall goal, and it can also rank crews based on their suitability for completing a given task.
 
-## Features
+![Autocrew_logo](./docs/autocrew_logo.png)
 
-- Initialize Ollama with a specified model (default is 'openhermes').
-- Get agent data from Ollama as a CSV response.
-- Save the CSV output to a file.
-- Parse the CSV data and extract agent information.
-- Define agents and tasks for the CrewAI script.
-- Write the CrewAI script based on the agent and task data.
-- Option to run the generated CrewAI script automatically.
+[Autocrew Discord channel](https://discord.gg/ZGxdjVSPA3)
 
-## Requirements
+## Key Features
 
-- Python 3.6 or higher
-- `langchain_community` package
-- `crewai` package
+- **Script Generation**: Autocrew can generate CrewAI agent and task scripts for a specified overall goal. It communicates with the Ollama language model to generate agent details, including roles, goals, backstories, assigned tasks, and delegation abilities. The generated scripts are ready for execution within CrewAI.
 
-## Installation
+- **Ranking Mode**: Autocrew can rank existing crews based on their suitability for a particular task. It collects CSV data files that represent different crews, communicates with Ollama to analyze and rank them, and provides a summary of the ranking.
 
-1. Clone the repository:
+- **Multiple Script Generation**: You can specify the number of scripts to generate for the same overall goal, allowing you to create multiple versions of your crew for comparison or experimentation.
 
-   ```
-   git clone https://github.com/yanniedog/crewai-autocrew.git
-   ```
+- **Automatic Execution**: Autocrew can automatically execute the generated scripts within CrewAI, saving you time and effort.
 
-2. Change to the project directory:
+## Prerequisites
 
-   ```
-   cd crewai-autocrew
-   ```
+Before using Autocrew, make sure you have the following prerequisites installed:
 
-3. Install the required packages:
+- Python 3.x
+- Required Python packages (install using `pip`):
+  - `argparse`
+  - `csv`
+  - `io`
+  - `json`
+  - `requests`
+  - `crewai`
+  - `langchain_community`
+- [Ollama](Ollama.ai)
+  - NOTE: Ollama is currently available for Linux and Mac only
+  - In order to run Ollama on windows, you need to install the Ubuntu 20.04 distribution within WSL. Please see [this guide](https://www.jeremymorgan.com/blog/generative-ai/how-to-run-llm-local-windows/) for more information.
 
-   ```
-   pip install langchain_community crewai
-   ```
+## Getting Started
+
+To get started with Autocrew, you'll need to clone the Git repository to your local machine. Follow these steps:
+
+1. Open your terminal or command prompt.
+
+2. Clone the Autocrew repository from GitHub using the following command:
+
+```bash
+git clone https://github.com/yanniedog/autocrew.git
+```
+
+3. Once the repository is cloned, you can navigate into the Autocrew directory:
+
+```bash
+cd autocrew
+```
+
+Now you have successfully cloned the Autocrew repository to your local machine, and you can start using and contributing to the project.
+
+If you encounter any issues, have questions, or want to contribute to Autocrew, please refer to the "Contributing" section in this README for guidelines on making changes and submitting pull requests.
 
 ## Usage
 
-1. Run the script with the overall goal as an argument:
+### Script Generation
 
-   ```
-   python autocrew.py "Find the best pizza restaurants in New York"
-   ```
+To generate CrewAI scripts for a specified overall goal, use the following command:
 
-   Alternatively, you can run the script without an argument and provide the overall goal when prompted:
+```bash
+python3 autocrew.py <overall_goal> [-a] [-m NUM] [-v]
+```
 
-   ```
-   python autocrew.py
-   ```
+- `<overall_goal>`: Specify the overall goal for your crew.
+- `-a` (optional): Automatically run the generated script(s) after generation.
+- `-m NUM` (optional): Generate NUM number of scripts for the same overall goal.
+- `-v` (optional): Enable verbose output for detailed information.
 
-2. The script will generate a CSV file with agent data and a CrewAI script based on the parsed agent data.
+### Ranking Mode
 
-3. To run the generated CrewAI script automatically, use the `-a` or `--autorun` option:
+To rank existing crews based on their suitability for a task, use the following command:
 
-   ```
-   python autocrew.py -a "Find the best pizza restaurants in New York"
-   ```
+```bash
+python3 autocrew.py -r <overall_goal> [-v]
+```
 
-## Customization
+- `-r`: Activate ranking mode.
+- `<overall_goal>`: Specify the overall goal for ranking.
+- `-v` (optional): Enable verbose output for detailed information.
 
-You can modify the script to use different models, tools, or processes for the CrewAI team. Simply update the relevant parts of the code to reflect your desired configuration.
+## Example
+
+Here's an example of generating CrewAI scripts for a project management task:
+
+```bash
+python3 autocrew.py "Project Management" -a -m 3 -v
+```
+
+This command generates three CrewAI scripts for the "Project Management" goal, automatically runs them, and provides detailed output.
 
 ## Contributing
 
-1. Fork the repository on GitHub.
-2. Create a new branch for your changes.
-3. Commit your changes and push them to your fork.
-4. Create a pull request with a description of your changes.
+If you would like to contribute to Autocrew, please fork the repository, make your changes, and submit a pull request. We welcome contributions and suggestions.
 
+## Community
+
+Join the [Autocrew Discord channel](https://discord.gg/ZGxdjVSPA3)
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+Autocrew is licensed under the [MIT License](LICENSE).
+
+## Acknowledgments
+
+Autocrew was created by [Yanniedog](https://github.com/yanniedog). It was initially built to interact with the [CrewAI](https://github.com/joaomdmoura/crewAI) platform, but compatibility with other platforms (such as [Autogen](https://microsoft.github.io/autogen/)) is currently in development.
 =======
 # CrewAI AutoCrew Script
 
