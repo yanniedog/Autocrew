@@ -5,7 +5,8 @@ import argparse
 import configparser
 import copy
 import csv
-import datetime
+
+
 import io
 import json
 import logging
@@ -21,21 +22,21 @@ from typing import Any, Dict, List
 # External libraries imports
 from packaging import version
 from openai import OpenAI
-from datetime import datetime
-from crewai import Agent, Crew, Process, Task
-from langchain_community.llms import Ollama
-from langchain_community.tools import DuckDuckGoSearchRun
-from langchain.callbacks.manager import CallbackManager
-from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
-
+from datetime import datetime as dt
 
 # Local application/utility specific imports
-from ngrok import main as ngrok_main
 from utils import (
     count_tokens, get_next_crew_name, parse_csv_data,
     save_csv_output, write_crewai_script, countdown_timer,
     redact_api_key, GREEK_ALPHABETS
 )
+from crewai import Agent, Crew, Process, Task
+from langchain_community.llms import Ollama
+from langchain_community.tools import DuckDuckGoSearchRun
+from langchain.callbacks.manager import CallbackManager
+from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
+from ngrok import ngrok_main
+
 
 
 
@@ -100,8 +101,7 @@ class AutoCrew():
     
     def initialize_ollama(self):
         connection_type = "remote" if self.use_remote_ollama_host else "local"
-        model = self.llm_model
-        logging.info(f"Initializing {connection_type} connection to Ollama using model {model}...")
+        # Rest of the code...
 
         # If a remote connection is desired, establish the ngrok tunnel and update the config
         if self.use_remote_ollama_host:
@@ -110,11 +110,7 @@ class AutoCrew():
             self.config = self.load_config('config.ini')  # Reload the updated config
             self.ollama_host = self.config.get('REMOTE_HOST_CONFIG', 'ollama_host', fallback=self.ollama_host)  # Update the Ollama host URL
 
-        # Start the Ollama service if it's not already running and if reset_ollama_host_on_startup is True
-        if self.reset_ollama_host_on_startup:
-            self.start_ollama_service()
-
-        logging.info(f"Ollama host: {self.ollama_host}")
+        # Rest of the code...
 
         try:
             return Ollama(base_url=self.ollama_host, model=self.llm_model, verbose=True, callback_manager=CallbackManager([StreamingStdOutCallbackHandler()]))
@@ -171,7 +167,13 @@ class AutoCrew():
         instruction = (
             f'Create a dataset in a CSV format with each field enclosed in double quotes, '
             f'for a team of agents. Overall goal for the team is: "{overall_goal}". '
+            f'Create a dataset in a CSV format with each field enclosed in double quotes, '
+            f'for a team of agents. Overall goal for the team is: "{overall_goal}". '
             f'You need to design agents that will work effectively and collaboratively to achieve the team goal successfully. '
+            f'Agents are identified by their role. You must provide each agent in your team the title of their role, their individual goal within the team, their personal backstory and individual skillset, specific details of a task assigned to them which will help ensure the team goal is completed successfully, and whether or not the agent is permitted to delegate certain duties to other agents (True/False). '
+            f'Your CSV must contain the columns "role", "goal", "backstory", "assigned_task", "allow_delegation". '
+            f'Use the delimiter "{delimiter}" to separate the fields. '
+            f'Maintain consistent formatting. Each agent\'s details should be in quotes to avoid confusion with the delimiter. '
             f'Agents are identified by their role. You must provide each agent in your team the title of their role, their individual goal within the team, their personal backstory and individual skillset, specific details of a task assigned to them which will help ensure the team goal is completed successfully, and whether or not the agent is permitted to delegate certain duties to other agents (True/False). '
             f'Your CSV must contain the columns "role", "goal", "backstory", "assigned_task", "allow_delegation". '
             f'Use the delimiter "{delimiter}" to separate the fields. '
@@ -205,19 +207,23 @@ class AutoCrew():
                 return response
             elif self.llm_endpoint == 'openai' and self.openai_api_key:
                 client = OpenAI(api_key=self.openai_api_key)
-                chat_completion = client.chat.completions.create(
-                    model=self.openai_model,  # Use the model directly from the configuration
-                    messages=[
-                        {"role": "system", "content": "You are a helpful assistant."},
-                        {"role": "user", "content": instruction}
-                    ],
-                    max_tokens=max_response_tokens  # Use the calculated max_response_tokens
-                )
-                response = chat_completion.choices[0].message.content.strip()
-                # Log the raw LLM output
-                logging.debug(f"Raw LLM output (OpenAI):\n{response}")
-                logging.debug(f"Number of tokens in the response: {count_tokens(response)}")
-                return response
+                if self.openai_model is not None:  # Add a conditional check for the model parameter
+                    chat_completion = client.chat.completions.create(
+                        model=self.openai_model,  # Use the model directly from the configuration
+                        messages=[
+                            {"role": "system", "content": "You are a helpful assistant."},
+                            {"role": "user", "content": instruction}
+                        ],
+                        max_tokens=max_response_tokens  # Use the calculated max_response_tokens
+                    )
+                    response = chat_completion.choices[0].message.content.strip() if chat_completion.choices[0].message.content else ""
+                    # Log the raw LLM output
+                    logging.debug(f"Raw LLM output (OpenAI):\n{response}")
+                    logging.debug(f"Number of tokens in the response: {count_tokens(response)}")
+                    return response
+                else:
+                    logging.error("OpenAI model is not available.")
+                    return ""
             else:
                 logging.error("Neither OpenAI API key nor Ollama instance is available.")
                 return ""
@@ -244,18 +250,28 @@ class AutoCrew():
             file_path = save_csv_output(response, overall_goal, truncation_length=self.overall_goal_truncation_for_filenames, greek_suffix=greek_suffix)
             agents_data = parse_csv_data(response, delimiter=',', filename=file_path)
             if not agents_data:
-                raise ValueError('No agent data parsed')
+                file_path = save_csv_output(response, overall_goal, truncation_length=self.overall_goal_truncation_for_filenames, greek_suffix=greek_suffix)
+                agents_data = parse_csv_data(response, delimiter=',', filename=file_path)
+                if not agents_data:
+                    raise ValueError('No agent data parsed')
 
             # Use the truncated goal for the script filename
             truncated_goal = overall_goal[:self.overall_goal_truncation_for_filenames].replace(" ", "-")
-            timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+            timestamp = dt.now().strftime("%Y%m%d-%H%M%S")
+
             file_name = f'crewai-autocrew-{timestamp}-{truncated_goal}-{greek_suffix}.py'
+
+            # Generate crew tasks based on the agents_data
+            crew_tasks = self.generate_crew_tasks(agents_data)
+
 
             # Generate crew tasks based on the agents_data
             crew_tasks = self.generate_crew_tasks(agents_data)
 
             # Call the standalone function with the necessary parameters
             write_crewai_script(
+                agents_data,
+                crew_tasks,
                 agents_data,
                 crew_tasks,
                 file_name,
@@ -271,13 +287,18 @@ class AutoCrew():
 
         # Fetch the response from the LLM using the detailed instruction
         response = self.get_agent_data(overall_goal, ',')
+        # Fetch the response from the LLM using the detailed instruction
+        response = self.get_agent_data(overall_goal, ',')
 
         # Process the LLM response
+        if not response:
+            logging.error('No response from LLM')
         if not response:
             logging.error('No response from LLM')
             raise ValueError("Failed to get valid response from LLM.")
 
         try:
+            return process_response(response)
             return process_response(response)
         except ValueError as e:
             logging.error(f"Failed to process LLM response: {e}")
@@ -313,8 +334,10 @@ class AutoCrew():
 
         # Concatenate crew data from CSV files into JSON format
         concatenated_csv_data, json_data_str = self.concatenate_crew_data(csv_file_paths)
+        concatenated_csv_data, json_data_str = self.concatenate_crew_data(csv_file_paths)
 
         # Construct the ranking prompt with the necessary csv_file_paths argument
+        prompt = self.construct_ranking_prompt(json_data_str, overall_goal, csv_file_paths)
         prompt = self.construct_ranking_prompt(json_data_str, overall_goal, csv_file_paths)
 
         # Log the entire ranking request
@@ -337,21 +360,27 @@ class AutoCrew():
 
         # Process the response and update the ranking summary
         ranked_crews, overall_summary = self.process_ranking_response(ranked_crew, concatenated_csv_data, overall_summary, csv_file_paths)
+        ranked_crews, overall_summary = self.process_ranking_response(ranked_crew, concatenated_csv_data, overall_summary, csv_file_paths)
 
         logging.info("Ranking process completed.")
         return ranked_crews, overall_summary
 
     def get_openai_response(self, prompt, max_tokens):
         client = OpenAI(api_key=self.openai_api_key)
+        model = self.openai_model or ""  # Ensure self.openai_model is a string
         chat_completion = client.chat.completions.create(
-            model=self.openai_model,
+            model=model,
             messages=[
                 {"role": "system", "content": "You are a helpful assistant."},
                 {"role": "user", "content": prompt}
             ],
             max_tokens=max_tokens
         )
-        return chat_completion.choices[0].message.content.strip()
+        if chat_completion.choices:
+            return chat_completion.choices[0].message.content.strip() if chat_completion.choices[0].message.content else ""
+        else:
+            return ""
+
 
     def calculate_max_response_tokens(self, prompt):
         prompt_token_count = count_tokens(prompt)
@@ -365,6 +394,8 @@ class AutoCrew():
         # Enclose each header cell in double quotes
         concatenated_csv_data = '"crew_name","role","goal","backstory","assigned_task","allow_delegation"\n'
         
+        for file_path in csv_file_paths:
+            crew_name, csv_data = self.extract_csv_data(file_path)
         for file_path in csv_file_paths:
             crew_name, csv_data = self.extract_csv_data(file_path)
             if csv_data:
@@ -393,11 +424,9 @@ class AutoCrew():
             csv_data_with_crew_name = [f'"{crew_name}",' + line.strip() for line in csv_lines]
             return crew_name, '\n'.join(csv_data_with_crew_name) + '\n'
 
-
-
-
     def construct_ranking_prompt(self, json_data_str, overall_goal, csv_file_paths):
         # Extract crew names from the end of the file paths
+        crew_names = [os.path.basename(path).split('-')[-1].split('.')[0] for path in csv_file_paths]
         crew_names = [os.path.basename(path).split('-')[-1].split('.')[0] for path in csv_file_paths]
         unique_crew_names = sorted(set(crew_names), key=crew_names.index)  # Remove duplicates and maintain order
         crew_names_str = ', '.join(unique_crew_names)
@@ -446,7 +475,8 @@ class AutoCrew():
 
                 
     def save_ranking_output(self, ranked_crews, overall_goal):
-        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        timestamp = dt.now().strftime("%Y%m%d-%H%M%S")
+
         file_name = f'crewai-autocrew-{timestamp}-{overall_goal[:40].replace(" ", "-")}-ranking.csv'
         directory = os.path.join(os.getcwd(), "scripts")
         if not os.path.exists(directory):
@@ -510,10 +540,13 @@ class AutoCrew():
     def generate_crew_tasks(self, agents_data):
         return [{'role': agent['role']} for agent in agents_data]
 
+                
+    def generate_crew_tasks(self, agents_data):
+        return [{'role': agent['role']} for agent in agents_data]
+
     
     def get_task_var_name(self, role):
         return f'task_{role.replace(" ", "_").replace("-", "_").replace(".", "_")}'
             
-
 
 

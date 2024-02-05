@@ -1,6 +1,5 @@
-#!/usr/bin/env python3
-
 # filename: welcome.py
+
 import configparser
 import subprocess
 import logging
@@ -82,17 +81,11 @@ def get_input(prompt, default=None, validator=None):
             logging.debug(f"Invalid input: {user_input}")
             logging.info("Invalid input, please try again.")
 
-            
-
-
-            
-
 def validate_yes_no(value, default=None):
     """Validate if the provided value is a yes/no response or default."""
     if value == '' and default is not None:
         return True
     return value.lower() in ['yes', 'no', 'y', 'n']
-
 
 def validate_positive_int(value):
     """Validate if the provided value is a positive integer."""
@@ -100,8 +93,6 @@ def validate_positive_int(value):
         return int(value) > 0
     except ValueError:
         return False
-
-
 
 def select_from_list(options, prompt):
     """Allow the user to select an option from a list."""
@@ -185,7 +176,6 @@ def execute_script(script_path):
         logging.exception(f"An error occurred while executing the script: {e}")
     except FileNotFoundError:
         logging.exception(f"The script file was not found: {script_path}")
-
 
 def handle_ranked_crews(overall_goal):
     ranked_crews = get_ranked_crews(overall_goal)
@@ -297,14 +287,13 @@ def choose_llm_endpoint_and_model(config):
 
     return llm_endpoint, openai_model
 
-
 def clear_screen_and_logfile(logfile):
     """Clear the screen and the log file."""
     # Clear the screen
     os.system('cls' if os.name == 'nt' else 'clear')
 
-    # Clear the log file
-    with open(logfile, 'w'):
+    # Clear the log file by opening it in append mode
+    with open(logfile, 'a'):
         pass
 
 def print_ranking_csv(overall_goal):
@@ -336,8 +325,6 @@ def print_ranking_csv(overall_goal):
         log_message = f"Error reading CSV file: {e}"
         logging.error(log_message)
         print(log_message)
-
-
 
 def get_max_widths(headers, data, max_width):
     """Calculate the maximum width for each column."""
@@ -394,13 +381,18 @@ def handle_advanced_settings(config):
     except Exception as e:
         logging.exception("An unexpected error occurred in handle_advanced_settings:")
 
+def check_and_refresh_ngrok_tunnel(config, retry_interval=10):
+    global ngrok_tunnel_info
+    while True:
+        try:
+            if ngrok_tunnel_info is None:
+                ngrok_api_key = get_ngrok_api_key()
+                tunnels = get_ngrok_tunnels(ngrok_api_key)
+                public_url = get_public_url(tunnels)
 
-
-def check_and_refresh_ngrok_tunnel(config):
-    try:
-        ngrok_api_key = get_ngrok_api_key()
-        tunnels = get_ngrok_tunnels(ngrok_api_key)
-        public_url = get_public_url(tunnels)
+        except Exception as e:
+            logging.error(f"Error checking or refreshing ngrok URL: {e}")
+            return None
 
         if public_url:
             config['REMOTE_HOST_CONFIG']['ollama_host'] = public_url
@@ -410,9 +402,6 @@ def check_and_refresh_ngrok_tunnel(config):
         else:
             logging.info("\nNo active ngrok tunnels found.\n")
             return None
-    except Exception as e:
-        logging.error(f"Error checking or refreshing ngrok URL: {e}")
-        return None
 
 
 def handle_ngrok_reconnection(config):
@@ -425,16 +414,6 @@ def handle_ngrok_reconnection(config):
         else:
             print(f"\rRetrying to establish ngrok tunnel connection in {retry_interval} seconds... (Attempt {attempt + 1} of {max_retries})", end='', flush=True)
             time.sleep(retry_interval)
-
-    # If the loop exits without returning, it means all retries have failed
-    print("\nGoogle Colab server hosting the ngrok tunnel may have closed. Please go to Google Colab and restart the server.")
-    repo_api_url = "https://api.github.com/repos/yanniedog/Autocrew/contents/"
-    notebook_url = ngrok.get_colab_notebook_url(repo_api_url)
-    ngrok.display_ngrok_setup_instructions(notebook_url)
-    return None
-
-
-
 
 def main():
     setup_logging()
