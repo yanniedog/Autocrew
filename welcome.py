@@ -12,13 +12,16 @@ import re
 import csv
 import sys
 import textwrap
+import time
 import ollama
+import ngrok
 
 from autocrew import check_latest_version, generate_startup_message
-
-from logging_config import flush_log_handlers
-from logging_config import setup_logging
+from ollama import main as ollama_main
+from ollama import pull_model
+from logging_config import setup_logging, flush_log_handlers
 from core import AutoCrew
+from ngrok import get_ngrok_api_key, get_ngrok_tunnels, get_public_url, get_colab_notebook_url, display_ngrok_setup_instructions
 
 GREEK_ALPHABETS = ["alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta", "iota", "kappa",
                    "lambda", "mu", "nu", "xi", "omicron", "pi", "rho", "sigma", "tau", "upsilon"]
@@ -62,17 +65,34 @@ def log_initial_config(config):
         config_string.seek(0)
         logging.debug("Initial config.ini settings (redacted):\n" + config_string.read())
 
-def get_input(prompt, default=None, validator=lambda x: True):
+def get_input(prompt, default=None, validator=None):
     """Get user input with validation and logging."""
     while True:
         user_input = input(prompt)
         if user_input == '' and default is not None:
             user_input = default
-        if validator(user_input):
+            logging.debug(f"Prompt: {prompt.strip()} | User input: {user_input} (default)")
+        else:
             logging.debug(f"Prompt: {prompt.strip()} | User input: {user_input}")
+        
+        # If no validator is provided, or if the validator returns True, return the input
+        if validator is None or validator(user_input):
             return user_input
-        logging.debug(f"Invalid input: {user_input}")
-        logging.info("Invalid input, please try again.")
+        else:
+            logging.debug(f"Invalid input: {user_input}")
+            logging.info("Invalid input, please try again.")
+
+            
+
+
+            
+
+def validate_yes_no(value, default=None):
+    """Validate if the provided value is a yes/no response or default."""
+    if value == '' and default is not None:
+        return True
+    return value.lower() in ['yes', 'no', 'y', 'n']
+
 
 def validate_positive_int(value):
     """Validate if the provided value is a positive integer."""
@@ -81,9 +101,7 @@ def validate_positive_int(value):
     except ValueError:
         return False
 
-def validate_yes_no(value):
-    """Validate if the provided value is a yes/no response."""
-    return value.lower() in ['yes', 'no', 'y', 'n']
+
 
 def select_from_list(options, prompt):
     """Allow the user to select an option from a list."""
@@ -164,9 +182,10 @@ def execute_script(script_path):
         logging.debug(f"Executing script: {script_path}")
         subprocess.run(['python3', script_path], check=True)
     except subprocess.CalledProcessError as e:
-        logging.error(f"An error occurred while executing the script: {e}")
+        logging.exception(f"An error occurred while executing the script: {e}")
     except FileNotFoundError:
-        logging.error(f"The script file was not found: {script_path}")
+        logging.exception(f"The script file was not found: {script_path}")
+
 
 def handle_ranked_crews(overall_goal):
     ranked_crews = get_ranked_crews(overall_goal)
@@ -233,11 +252,15 @@ def choose_llm_endpoint_and_model(config):
     existing_endpoint = config.get('BASIC', 'llm_endpoint', fallback=None)
     existing_model = config.get('OLLAMA_CONFIG' if existing_endpoint == 'ollama' else 'OPENAI_CONFIG', 'openai_model' if existing_endpoint == 'openai' else 'llm_model', fallback=None)
 
+    # Check if the remote host setting is enabled
+    use_remote_ollama_host = config.getboolean('REMOTE_HOST_CONFIG', 'use_remote_ollama_host', fallback=False)
+    endpoint_display = f"{existing_endpoint} (remote)" if use_remote_ollama_host and existing_endpoint == 'ollama' else existing_endpoint
+
     logging.debug(f"Existing LLM endpoint: {existing_endpoint}")
     logging.debug(f"Existing LLM model: {existing_model}")
 
     # Default choice is to use existing settings
-    use_existing = get_input(f"Use existing settings (LLM endpoint: {existing_endpoint}, Model: {existing_model})? (y/n) [yes]: ", default='yes', validator=validate_yes_no)
+    use_existing = get_input(f"Use existing settings (LLM endpoint: {endpoint_display}, Model: {existing_model})? (y/n) [yes]: ", default='yes', validator=validate_yes_no)
     logging.debug(f"User chose to {'use' if use_existing.lower() in ['yes', 'y'] else 'not use'} existing settings.")
     if use_existing.lower() in ['yes', 'y']:
         return existing_endpoint, existing_model
@@ -257,7 +280,7 @@ def choose_llm_endpoint_and_model(config):
         openai_model = ollama_model  # For consistency in the return statement
 
     # Ask if the user wants to use the same settings for CrewAI scripts
-    use_same_for_crewai = get_input("Use the same settings for CrewAI scripts? (y/n): ", default='y', validator=validate_yes_no)
+    use_same_for_crewai = get_input("Use the same settings for CrewAI scripts? (y/n) [yes]: ", default='yes', validator=validate_yes_no)
     if use_same_for_crewai.lower() in ['yes', 'y']:
         config.set('CREWAI_SCRIPTS', 'llm_endpoint_within_generated_scripts', llm_endpoint)
         config.set('CREWAI_SCRIPTS', 'llm_model_within_generated_scripts', openai_model)
@@ -273,6 +296,7 @@ def choose_llm_endpoint_and_model(config):
             config.set('CREWAI_SCRIPTS', 'llm_model_within_generated_scripts', crewai_model)
 
     return llm_endpoint, openai_model
+
 
 def clear_screen_and_logfile(logfile):
     """Clear the screen and the log file."""
@@ -331,31 +355,129 @@ def print_table(headers, data, widths):
     for row in data:
         print("|".join(str(cell).ljust(width) for cell, width in zip(row, widths)))
 
+def handle_advanced_settings(config):
+    try:
+        advanced_settings = get_input("Would you like to view advanced settings? (yes/no) [no]: ", default='no', validator=validate_yes_no)
+        if advanced_settings.lower() in ['yes', 'y']:
+            use_remote_ollama = get_input("Would you like to run Ollama on a cloud server using an ngrok tunnel? (yes/no): ", validator=validate_yes_no)
+            if use_remote_ollama.lower() in ['yes', 'y']:
+                # Check if there is an existing ngrok API key
+                existing_ngrok_key = config.get('AUTHENTICATORS', 'ngrok_api_key', fallback='')
+                if existing_ngrok_key:
+                    use_existing_key = get_input(f"Use existing ngrok API key ({get_redacted_api_key(existing_ngrok_key)})? (y/n): ", validator=validate_yes_no)
+                    if use_existing_key.lower() in ['no', 'n']:
+                        new_key = get_input("Enter your new ngrok API key: ", validator=lambda x: x.strip() != '')
+                        if new_key:
+                            config['AUTHENTICATORS']['ngrok_api_key'] = new_key
+                else:
+                    new_key = get_input("Enter your ngrok API key: ", validator=lambda x: x.strip() != '')
+                    if new_key:
+                        config['AUTHENTICATORS']['ngrok_api_key'] = new_key
+
+                # Retrieve ngrok tunnel information
+                ngrok_api_key = get_ngrok_api_key()
+                tunnels = get_ngrok_tunnels(ngrok_api_key)
+                public_url = get_public_url(tunnels)
+
+                if public_url:
+                    logging.info(f"Ngrok public URL: {public_url}")
+                    # Store the public URL in the config.ini file under REMOTE_HOST_CONFIG section
+                    config['REMOTE_HOST_CONFIG']['ollama_host'] = public_url
+                else:
+                    logging.error("No public HTTPS tunnels found.")
+
+                # Save the updated configuration
+                save_configuration(config)
+
+            # Add more advanced settings questions here as needed
+
+    except Exception as e:
+        logging.exception("An unexpected error occurred in handle_advanced_settings:")
+
+
+
+def check_and_refresh_ngrok_tunnel(config):
+    try:
+        ngrok_api_key = get_ngrok_api_key()
+        tunnels = get_ngrok_tunnels(ngrok_api_key)
+        public_url = get_public_url(tunnels)
+
+        if public_url:
+            config['REMOTE_HOST_CONFIG']['ollama_host'] = public_url
+            save_configuration(config)  # Save the updated configuration
+            logging.info(f"Updated ngrok URL in config: {public_url}")
+            return public_url
+        else:
+            logging.info("\nNo active ngrok tunnels found.\n")
+            return None
+    except Exception as e:
+        logging.error(f"Error checking or refreshing ngrok URL: {e}")
+        return None
+
+
+def handle_ngrok_reconnection(config):
+    retry_interval = 10  # seconds
+    max_retries = 3  # Adjust the number of retries as needed
+    for attempt in range(max_retries):
+        ngrok_url = check_and_refresh_ngrok_tunnel(config)  # Pass the 'config' variable as an argument
+        if ngrok_url:
+            return ngrok_url
+        else:
+            print(f"\rRetrying to establish ngrok tunnel connection in {retry_interval} seconds... (Attempt {attempt + 1} of {max_retries})", end='', flush=True)
+            time.sleep(retry_interval)
+
+    # If the loop exits without returning, it means all retries have failed
+    print("\nGoogle Colab server hosting the ngrok tunnel may have closed. Please go to Google Colab and restart the server.")
+    repo_api_url = "https://api.github.com/repos/yanniedog/Autocrew/contents/"
+    notebook_url = ngrok.get_colab_notebook_url(repo_api_url)
+    ngrok.display_ngrok_setup_instructions(notebook_url)
+    return None
+
+
+
 
 def main():
     setup_logging()
     config = configparser.ConfigParser()
     config.read('config.ini')
     log_initial_config(config)
-
-    # Check for the latest version and generate startup message
     latest_version, version_message = check_latest_version()
     startup_message = generate_startup_message(latest_version, version_message)
     logging.info(startup_message)
-
     overall_goal = get_input("Please specify your overall goal: ")
-    
-    # Default answer set to 3 for the number of alternative crews
     num_alternative_crews = get_input("How many alternative crews do you wish to generate? [3]: ", default='3', validator=validate_positive_int)
-    
-    # Default answer set to 'yes' for ranking
     rank_crews = get_input("Do you want the crews to be ranked afterwards? (yes/no) [yes]: ", default='yes', validator=validate_yes_no) in ['yes', 'y']
-
-    # Choose LLM Endpoint and Model or use existing settings
     llm_endpoint, llm_model = choose_llm_endpoint_and_model(config)
+    handle_advanced_settings(config)
 
-    # Automatically save the settings to config.ini
-    save_configuration(config)
+    # Check and refresh ngrok connection before proceeding
+    if llm_endpoint == 'ollama' and config.getboolean('REMOTE_HOST_CONFIG', 'use_remote_ollama_host', fallback=False):
+        ngrok_url = check_and_refresh_ngrok_tunnel(config)
+        if not ngrok_url:
+            for i in range(10, 0, -1):
+                print(f"\rRetrying in {i} seconds...(Press Ctrl+C to abort)", end='', flush=True)
+                time.sleep(1)
+                ngrok_url = check_and_refresh_ngrok_tunnel(config)
+                if ngrok_url:
+                    break
+
+        if not ngrok_url:
+            print("\nUnable to establish ngrok tunnel. Operation aborted.")
+            logging.info("Operation aborted due to failure to establish ngrok tunnel.")
+            sys.exit(1)
+
+    # Before starting any operations that require ngrok tunnel, check whether there is still a connection, and check whether the ngrok_url has changed:
+    if llm_endpoint == 'ollama' and config.getboolean('REMOTE_HOST_CONFIG', 'use_remote_ollama_host', fallback=False):
+        ngrok_url = handle_ngrok_reconnection(config)
+
+    # Pull the model using the updated ngrok URL
+    if llm_endpoint == 'ollama' and ngrok_url:
+        # Ensure the pull_model function uses the updated ngrok URL from config
+        base_url = config['REMOTE_HOST_CONFIG']['ollama_host']
+        pull_result = pull_model(llm_model, base_url, verbose=True)  # Make sure pull_model accepts base_url as an argument
+        if pull_result is None or pull_result.get('status') != 'success':
+            logging.error(f"Failed to pull model {llm_model}.")
+            sys.exit(1)
 
     # Create an instance of AutoCrew and log the updated configuration
     config_path = os.path.join(os.getcwd(), 'config.ini')  # Specify the path to the config.ini file
@@ -374,5 +496,10 @@ def main():
         logging.error("Autocrew script execution failed.")
 
 if __name__ == "__main__":
-    clear_screen_and_logfile('autocrew.log')
-    main()
+    try:
+        clear_screen_and_logfile('autocrew.log')
+        main()
+    except Exception as e:
+        logging.exception("Unhandled exception: %s", str(e))
+    finally:
+        flush_log_handlers()  # Ensure log handlers are flushed at the end of the script

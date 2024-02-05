@@ -22,19 +22,21 @@ from typing import Any, Dict, List
 from packaging import version
 from openai import OpenAI
 from datetime import datetime
-
-
-# Local application/utility specific imports
-from utils import (
-    count_tokens, get_next_crew_name, parse_csv_data,
-    save_csv_output, write_crewai_script, countdown_timer,
-    redact_api_key, GREEK_ALPHABETS
-)
 from crewai import Agent, Crew, Process, Task
 from langchain_community.llms import Ollama
 from langchain_community.tools import DuckDuckGoSearchRun
 from langchain.callbacks.manager import CallbackManager
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
+
+
+# Local application/utility specific imports
+from ngrok import main as ngrok_main
+from utils import (
+    count_tokens, get_next_crew_name, parse_csv_data,
+    save_csv_output, write_crewai_script, countdown_timer,
+    redact_api_key, GREEK_ALPHABETS
+)
+
 
 
     
@@ -101,11 +103,17 @@ class AutoCrew():
         model = self.llm_model
         logging.info(f"Initializing {connection_type} connection to Ollama using model {model}...")
 
-        # Start the Ollama service if it's not already running
-        self.start_ollama_service()
+        # If a remote connection is desired, establish the ngrok tunnel and update the config
+        if self.use_remote_ollama_host:
+            logging.info("Establishing ngrok tunnel for remote Ollama connection...")
+            ngrok_main()  # Call the main function from ngrok.py to establish the tunnel and update config.ini
+            self.config = self.load_config('config.ini')  # Reload the updated config
+            self.ollama_host = self.config.get('REMOTE_HOST_CONFIG', 'ollama_host', fallback=self.ollama_host)  # Update the Ollama host URL
 
-        # Set default Ollama host if not specified in environment
-        self.ollama_host = os.getenv('OLLAMA_HOST', 'http://localhost:11434')
+        # Start the Ollama service if it's not already running and if reset_ollama_host_on_startup is True
+        if self.reset_ollama_host_on_startup:
+            self.start_ollama_service()
+
         logging.info(f"Ollama host: {self.ollama_host}")
 
         try:
@@ -113,16 +121,31 @@ class AutoCrew():
         except Exception as e:
             logging.error(f"Failed to initialize Ollama: {e}")
             return None
+
+
         
     def start_ollama_service(self):
+        if self.use_remote_ollama_host:
+            # If a remote Ollama host is being used, do not start a local service
+            logging.debug("Using remote Ollama host, skipping local service startup.")
+            return
+
         try:
             # Check if the Ollama service is running
-            subprocess.check_output(["pgrep", "-f", "ollama serve"])
-            logging.debug("Ollama service is already running.")
+            running_processes = subprocess.check_output(["pgrep", "-f", "ollama serve"]).decode().strip().split('\n')
+            if running_processes:
+                logging.debug("Existing Ollama service detected. Terminating...")
+                for pid in running_processes:
+                    subprocess.check_output(["kill", pid])
+                logging.debug("Existing Ollama service terminated.")
         except subprocess.CalledProcessError:
-            # If the Ollama service is not running, start it
-            logging.debug("Starting Ollama service...")
-            subprocess.Popen(["ollama", "serve"], start_new_session=True)
+            # If the Ollama service is not running, no action is needed
+            logging.debug("No existing Ollama service detected.")
+
+        # Start a new Ollama service
+        logging.debug("Starting Ollama service...")
+        subprocess.Popen(["ollama", "serve"], start_new_session=True)
+
             
     def is_ollama_running(self):
         try:
@@ -471,7 +494,7 @@ class AutoCrew():
                 logging.info(f"Release notes: {latest_release['body']}")
                 logging.info(f"Download the latest version here: {latest_release['html_url']}")
             else:
-                logging.info("You are running the latest version of AutoCrew.")
+                logging.info("latest version")
         except Exception as e:
             logging.error(f"Error checking for the latest version: {e}")
             
