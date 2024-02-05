@@ -1,18 +1,60 @@
 # filename: ollama.py
+
+import subprocess
+import os
+import logging
 import requests
 import json
 import time
+
 from bs4 import BeautifulSoup
 from tqdm import tqdm
+from langchain_community.llms import Ollama
+from langchain.callbacks.manager import CallbackManager
+from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
+
+def initialize_ollama():
+    connection_type = "remote" if self.use_remote_ollama_host else "local"
+    model = self.llm_model
+    logging.info(f"Initializing {connection_type} connection to Ollama using model {model}...")
+
+    # Start the Ollama service if it's not already running
+    self.start_ollama_service()
+
+    # Set default Ollama host if not specified in environment
+    self.ollama_host = os.getenv('OLLAMA_HOST', 'http://localhost:11434')
+    logging.info(f"Ollama host: {self.ollama_host}")
+
+    try:
+        return Ollama(base_url=self.ollama_host, model=self.llm_model, verbose=True, callback_manager=CallbackManager([StreamingStdOutCallbackHandler()]))
+    except Exception as e:
+        logging.error(f"Failed to initialize Ollama: {e}")
+        return None
+
+def start_ollama_service():
+    try:
+        # Check if the Ollama service is running
+        subprocess.check_output(["pgrep", "-f", "ollama serve"])
+        logging.debug("Ollama service is already running.")
+    except subprocess.CalledProcessError:
+        # If the Ollama service is not running, start it
+        logging.debug("Starting Ollama service...")
+        subprocess.Popen(["ollama", "serve"], start_new_session=True)
+        # Wait for 2 seconds to allow the service to start
+        time.sleep(2)
+        
+def is_ollama_running():
+    try:
+        subprocess.check_output(["pgrep", "-f", "ollama serve"])
+        logging.debug("Ollama service is already running.")
+        return True
+    except subprocess.CalledProcessError:
+        return False
 
 def format_size(bytes, suffix="B"):
     """Convert bytes to a more readable format in MB/s."""
     return f"{bytes / 1_000_000:.2f} MB{suffix}"
 
-import requests
-import json
-import time
-from tqdm import tqdm
 
 def pull_model(model_name, verbose=False):
     url = "http://localhost:11434/api/pull"
@@ -157,6 +199,9 @@ def select_ollama_run_string(ollama_run_strings):
 
 
 def main():
+    # Ensure the Ollama service is running before proceeding
+    if not is_ollama_running():
+        start_ollama_service()
     while True:
         models = list_models()
         if 'models' in models:

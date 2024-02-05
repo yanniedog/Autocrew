@@ -16,25 +16,29 @@ import shutil
 import subprocess
 import sys
 import time
-from typing import Any, Dict, List
+
 
 # External libraries imports
 from packaging import version
 from openai import OpenAI
 from datetime import datetime
-
+from langchain_community.llms import Ollama
+from langchain_community.tools import DuckDuckGoSearchRun
+from langchain.callbacks.manager import CallbackManager
+from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
+from crewai import Agent, Crew, Process, Task
+from typing import Any, Dict, List
 
 # Local application/utility specific imports
+from ollama import initialize_ollama, start_ollama_service, is_ollama_running
 from utils import (
     count_tokens, get_next_crew_name, parse_csv_data,
     save_csv_output, write_crewai_script, countdown_timer,
     redact_api_key, GREEK_ALPHABETS
 )
-from crewai import Agent, Crew, Process, Task
-from langchain_community.llms import Ollama
-from langchain_community.tools import DuckDuckGoSearchRun
-from langchain.callbacks.manager import CallbackManager
-from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
+
+
+
 
 
     
@@ -84,7 +88,7 @@ class AutoCrew():
         self.ollama_host = "http://localhost:11434"  # Default value
 
         # Initialize other components
-        self.ollama = self.initialize_ollama() if self.llm_endpoint == 'ollama' else None
+        self.ollama = initialize_ollama(self.llm_model, self.use_remote_ollama_host) if self.llm_endpoint == 'ollama' else None
         # self.openai = self.initialize_openai() if self.llm_endpoint == 'openai' else None  (this is not needed, as openai does not need to be initalised like Ollama)
 
 
@@ -96,41 +100,9 @@ class AutoCrew():
         config.read(config_file)
         return config
     
-    def initialize_ollama(self):
-        connection_type = "remote" if self.use_remote_ollama_host else "local"
-        model = self.llm_model
-        logging.info(f"Initializing {connection_type} connection to Ollama using model {model}...")
 
-        # Start the Ollama service if it's not already running
-        self.start_ollama_service()
-
-        # Set default Ollama host if not specified in environment
-        self.ollama_host = os.getenv('OLLAMA_HOST', 'http://localhost:11434')
-        logging.info(f"Ollama host: {self.ollama_host}")
-
-        try:
-            return Ollama(base_url=self.ollama_host, model=self.llm_model, verbose=True, callback_manager=CallbackManager([StreamingStdOutCallbackHandler()]))
-        except Exception as e:
-            logging.error(f"Failed to initialize Ollama: {e}")
-            return None
         
-    def start_ollama_service(self):
-        try:
-            # Check if the Ollama service is running
-            subprocess.check_output(["pgrep", "-f", "ollama serve"])
-            logging.debug("Ollama service is already running.")
-        except subprocess.CalledProcessError:
-            # If the Ollama service is not running, start it
-            logging.debug("Starting Ollama service...")
-            subprocess.Popen(["ollama", "serve"], start_new_session=True)
-            
-    def is_ollama_running(self):
-        try:
-            subprocess.check_output(["pgrep", "-f", "ollama serve"])
-            logging.debug("Ollama service is already running.")
-            return True
-        except subprocess.CalledProcessError:
-            return False
+
         
     def get_agent_data(self, overall_goal, delimiter):
         if self.llm_endpoint == 'ollama':
