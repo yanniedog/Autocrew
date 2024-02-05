@@ -30,13 +30,16 @@ GREEK_ALPHABETS = ["alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", 
 def choose_llm_endpoint_and_model(config):
     """Prompt the user to choose the LLM endpoint and model, or keep the existing ones."""
     existing_endpoint = config.get('BASIC', 'llm_endpoint', fallback=None)
-    existing_model = config.get('OLLAMA_CONFIG' if existing_endpoint == 'ollama' else 'OPENAI_CONFIG', 'openai_model' if existing_endpoint == 'openai' else 'llm_model', fallback=None)
+    existing_model = config.get('OLLAMA_CONFIG' if existing_endpoint == 'ollama' else 'OPENAI_CONFIG', 
+                                'openai_model' if existing_endpoint == 'openai' else 'llm_model', 
+                                fallback=None)
 
     logging.debug(f"Existing LLM endpoint: {existing_endpoint}")
     logging.debug(f"Existing LLM model: {existing_model}")
 
     # Default choice is to use existing settings
-    use_existing = get_input(f"Use existing settings (LLM endpoint: {existing_endpoint}, Model: {existing_model})? (y/n) [yes]: ", default='yes', validator=validate_yes_no)
+    use_existing = get_input(f"Use existing settings (LLM endpoint: {existing_endpoint}, Model: {existing_model})? (y/n) [yes]: ", 
+                             default='yes', validator=validate_yes_no)
     logging.debug(f"User chose to {'use' if use_existing.lower() in ['yes', 'y'] else 'not use'} existing settings.")
     if use_existing.lower() in ['yes', 'y']:
         return existing_endpoint, existing_model
@@ -50,13 +53,23 @@ def choose_llm_endpoint_and_model(config):
         config.set('OPENAI_CONFIG', 'openai_model', openai_model)  # Update the config object
         handle_openai_api_key(config)
     elif llm_endpoint == 'ollama':
-        # Call the function from ollama.py here
         ollama_model = ollama.main()  # This should return the selected model
         config.set('OLLAMA_CONFIG', 'llm_model', ollama_model)  # Update the config object
+
+        # Ask user to set up Local or Remote ollama server
+        server_type = get_input("Set up a Local (l) or Remote (r) ollama server? [l]: ", default='l', 
+                                validator=lambda x: x.lower() in ['l', 'r'])
+        if server_type.lower() == 'r':
+            config.set('REMOTE_HOST_CONFIG', 'ollama_host', 'remote')  # Example setting, adjust as needed
+        else:
+            # Set to 'localhost:11434' when local server is chosen
+            config.set('REMOTE_HOST_CONFIG', 'ollama_host', 'localhost:11434')
+
         openai_model = ollama_model  # For consistency in the return statement
 
     # Ask if the user wants to use the same settings for CrewAI scripts
-    use_same_for_crewai = get_input("Use the same settings for CrewAI scripts? (y/n): ", default='y', validator=validate_yes_no)
+    use_same_for_crewai = get_input("Use the same settings for CrewAI scripts? (y/n): ", 
+                                    default='y', validator=validate_yes_no)
     if use_same_for_crewai.lower() in ['yes', 'y']:
         config.set('CREWAI_SCRIPTS', 'llm_endpoint_within_generated_scripts', llm_endpoint)
         config.set('CREWAI_SCRIPTS', 'llm_model_within_generated_scripts', openai_model)
@@ -75,6 +88,8 @@ def choose_llm_endpoint_and_model(config):
     save_configuration(config)
 
     return llm_endpoint, openai_model
+
+
 
 
 
@@ -445,11 +460,7 @@ def main():
     # Choose LLM Endpoint and Model or use existing settings
     llm_endpoint, llm_model = choose_llm_endpoint_and_model(config)
 
-    # Only handle advanced settings if LLM endpoint is Ollama
-    if llm_endpoint == 'ollama':
-        handle_advanced_settings(config)
-
-    # Check and refresh ngrok tunnel
+    # Check and refresh ngrok tunnel (this can be kept or removed based on your requirements)
     check_and_refresh_ngrok_tunnel(config)
 
     # Automatically save the settings to config.ini

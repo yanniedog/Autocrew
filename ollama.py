@@ -5,6 +5,7 @@ import os
 import logging
 import requests
 import json
+import configparser
 import time
 
 from bs4 import BeautifulSoup
@@ -13,20 +14,53 @@ from langchain_community.llms import Ollama
 from langchain.callbacks.manager import CallbackManager
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 
-def initialize_ollama():
-    connection_type = "remote" if self.use_remote_ollama_host else "local"
-    model = self.llm_model
-    logging.info(f"Initializing {connection_type} connection to Ollama using model {model}...")
+CONFIG_FILE = 'config.ini'
+
+CONFIG_FILE = 'config.ini'  # Path to the config.ini file
+
+def read_config():
+    """Read configuration from the config.ini file."""
+    config = configparser.ConfigParser()
+    config.read(CONFIG_FILE)
+    return config
+
+def write_config(config):
+    """Write the updated configuration back to the config.ini file."""
+    with open(CONFIG_FILE, 'w') as configfile:
+        config.write(configfile)
+
+def update_config(section, option, value):
+    config = configparser.ConfigParser()
+    config.read('config.ini')
+    config.set(section, option, value)
+    with open('config.ini', 'w') as configfile:
+        config.write(configfile)
+    logging.info(f"Updated config.ini: [{section}] {option} = {value}")
+
+def update_ollama_config(model_name, ollama_host, use_remote=False):
+    """Update the OLLAMA configuration in config.ini."""
+    config = read_config()
+
+    config['BASIC']['llm_endpoint'] = 'ollama'
+    config['OLLAMA_CONFIG']['llm_model'] = model_name
+    config['REMOTE_HOST_CONFIG']['use_remote_ollama_host'] = str(use_remote).lower()
+    config['REMOTE_HOST_CONFIG']['ollama_host'] = ollama_host if use_remote else 'localhost:11434'
+
+    write_config(config)
+
+def initialize_ollama(use_remote_ollama_host, llm_model, ollama_host):
+    connection_type = "remote" if use_remote_ollama_host else "local"
+    logging.info(f"Initializing {connection_type} connection to Ollama using model {llm_model}...")
 
     # Start the Ollama service if it's not already running
-    self.start_ollama_service()
+    start_ollama_service()
 
     # Set default Ollama host if not specified in environment
-    self.ollama_host = os.getenv('OLLAMA_HOST', 'http://localhost:11434')
-    logging.info(f"Ollama host: {self.ollama_host}")
+    ollama_host = os.getenv('OLLAMA_HOST', ollama_host)
+    logging.info(f"Ollama host: {ollama_host}")
 
     try:
-        return Ollama(base_url=self.ollama_host, model=self.llm_model, verbose=True, callback_manager=CallbackManager([StreamingStdOutCallbackHandler()]))
+        return Ollama(base_url=ollama_host, model=llm_model, verbose=True, callback_manager=CallbackManager([StreamingStdOutCallbackHandler()]))
     except Exception as e:
         logging.error(f"Failed to initialize Ollama: {e}")
         return None
@@ -198,10 +232,23 @@ def select_ollama_run_string(ollama_run_strings):
     return selected_value
 
 
+def update_config(section, option, value):
+    config = configparser.ConfigParser()
+    config_path = 'config.ini'
+    config.read(config_path)
+    config.set(section, option, value)
+    with open(config_path, 'w') as configfile:
+        config.write(configfile)
+
 def main():
     # Ensure the Ollama service is running before proceeding
     if not is_ollama_running():
         start_ollama_service()
+
+    # Update ollama_host in config if it's a local connection
+    ollama_host = "localhost:11434"
+    update_config('REMOTE_HOST_CONFIG', 'ollama_host', ollama_host)
+
     while True:
         models = list_models()
         if 'models' in models:
@@ -218,13 +265,13 @@ def main():
             continue
 
         if choice <= len(models['models']):
-            # User selected an existing model
             model_name = models['models'][choice - 1]['name']
             print(f"You have selected the model: {model_name}")
+            # Update model in config
+            update_config('OLLAMA_CONFIG', 'llm_model', model_name)
             return model_name
 
         elif choice == len(models['models']) + 1:
-            # User selected to download a new model
             base_url = "https://ollama.ai/library/"
             selected_model = scrape_and_list_urls(base_url)
             if selected_model:
@@ -234,6 +281,8 @@ def main():
 
                 if isinstance(result, dict) and 'status' in result and result['status'] == 'success':
                     print(f"Model {model_name} downloaded successfully.")
+                    # Update model in config
+                    update_config('OLLAMA_CONFIG', 'llm_model', model_name)
                     return model_name
                 else:
                     print("Model download failed:", result)
