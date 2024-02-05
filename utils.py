@@ -47,6 +47,7 @@ def get_next_crew_name(overall_goal, script_directory="scripts"):
 
 
 
+<<<<<<< Updated upstream
 def parse_json_data(response, delimiter=',', filename=''):
     """
     Parses Json data from a string response.
@@ -66,6 +67,20 @@ def parse_json_data(response, delimiter=',', filename=''):
     return response
     json_pattern = r'("role","goal","backstory","assigned_task","allow_delegation".*?)(?:```|$)'
     match = re.search(json_pattern, response, re.DOTALL)
+=======
+import re
+import csv
+import io
+import logging
+
+def parse_csv_data(response, delimiter=',', filename=''):
+    """
+    Enhanced function to parse CSV data with detailed error logging.
+    """
+    # Modified regex pattern for more flexibility in matching headers
+    csv_pattern = r'("role","goal","backstory","assigned\s*task","allow\s*delegation".*?)(?:```|$)'
+    match = re.search(csv_pattern, response, re.DOTALL)
+>>>>>>> Stashed changes
     if not match:
         logging.error("CSV data not found in the response.")
         raise ValueError('CSV data not found in the response')
@@ -74,7 +89,7 @@ def parse_json_data(response, delimiter=',', filename=''):
     logging.debug(f"Extracted CSV data for parsing:\n{csv_data}")
 
     # Define the expected header fields
-    header = ['role', 'goal', 'backstory', 'assigned_task', 'allow_delegation']
+    expected_headers = ['role', 'goal', 'backstory', 'assigned_task', 'allow_delegation']
     agents_data = []
 
     # Parse the CSV data
@@ -91,18 +106,21 @@ def parse_json_data(response, delimiter=',', filename=''):
         raise ValueError('CSV data is empty or incomplete')
 
     # Validate and extract headers
-    header_line = lines[0]
-    header_indices = {h.lower(): i for i, h in enumerate(header_line)}
-    for required_header in header:
-        if required_header not in header_indices:
-            logging.error(f'Missing required header "{required_header}" in CSV data')
-            raise ValueError(f'Missing required header "{required_header}"')
+    received_headers = lines[0]
+    received_header_indices = {h.lower().replace(" ", "_"): i for i, h in enumerate(received_headers)}
+
+    # Detailed comparison between expected and received headers
+    for expected_header in expected_headers:
+        if expected_header not in received_header_indices:
+            detailed_mismatch_info = compare_headers(expected_headers, received_headers)
+            logging.error(f'Missing or mismatched header. Detailed info: {detailed_mismatch_info}')
+            raise ValueError(f'Missing or mismatched header: {expected_header}')
 
     # Process each line of the CSV
     for line in lines[1:]:
         agent_data = {}
-        for header_name in header:
-            header_index = header_indices.get(header_name.lower())
+        for header_name in expected_headers:
+            header_index = received_header_indices.get(header_name)
             if header_index is not None and header_index < len(line):
                 agent_data[header_name] = line[header_index].strip('"').strip()
             else:
@@ -120,6 +138,7 @@ def parse_json_data(response, delimiter=',', filename=''):
     logging.debug(f"Successfully parsed {len(agents_data)} agents from json data.")
     return agents_data
 
+<<<<<<< Updated upstream
 def read_json_from_file(file_path):
     try:
         with open(file_path, 'r') as file:
@@ -132,6 +151,48 @@ def read_json_from_file(file_path):
     return None
 def save_json_output(json_response, overall_goal, script_directory="scripts", truncation_length=40, greek_suffix=None):
     """Saves the Json output to a file."""
+=======
+def compare_headers(expected_headers, received_headers):
+    """
+    Compare and contrast expected and received headers, returning detailed mismatch info.
+    """
+    detailed_info = []
+    for expected, received in zip(expected_headers, received_headers):
+        expected_norm = expected.lower().replace("_", " ")
+        received_norm = received.lower().strip('"').strip()
+        if expected_norm != received_norm:
+            detailed_info.append(f'Expected: "{expected}", Received: "{received}"')
+    return '; '.join(detailed_info) if detailed_info else 'No header mismatch.'
+
+# Example usage
+response = 'YOUR RESPONSE STRING HERE'
+try:
+    parsed_data = parse_csv_data(response)
+except ValueError as e:
+    print(f"Error: {e}")
+
+
+
+def save_csv_output(response, overall_goal, script_directory="scripts", truncation_length=40, greek_suffix=None):
+    """Saves the CSV output to a file."""
+    reader = csv.reader(io.StringIO(response), quotechar='"', delimiter=',', skipinitialspace=True)
+    
+    cleaned_csv_lines = []
+    for fields in reader:
+        if len(fields) != 5:
+            continue
+        cleaned_fields = ['"{}"'.format(field.replace('"', '""')) for field in fields]
+        cleaned_line = ','.join(cleaned_fields)
+        cleaned_csv_lines.append(cleaned_line)
+
+    if cleaned_csv_lines:
+        csv_data = '\n'.join(cleaned_csv_lines)
+        logging.debug("Extracted and cleaned CSV data from raw output.")
+        logging.info(f"\nDetails of your auto-generated crew:\n\n{csv_data}")
+    else:
+        logging.error("No CSV data found in the response.")
+        raise ValueError("No CSV data found in the response")
+>>>>>>> Stashed changes
 
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     # Use the provided greek_suffix if available, otherwise get the next one
