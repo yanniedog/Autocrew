@@ -12,16 +12,146 @@ import re
 import csv
 import sys
 import textwrap
+from ngrok import get_ngrok_api_key
 import ollama
+import time
 
 from autocrew import check_latest_version, generate_startup_message
 
 from logging_config import flush_log_handlers
 from logging_config import setup_logging
 from core import AutoCrew
+from ngrok import get_ngrok_tunnels
+from ngrok import get_public_url
 
 GREEK_ALPHABETS = ["alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta", "iota", "kappa",
                    "lambda", "mu", "nu", "xi", "omicron", "pi", "rho", "sigma", "tau", "upsilon"]
+
+def choose_llm_endpoint_and_model(config):
+    """Prompt the user to choose the LLM endpoint and model, or keep the existing ones."""
+    existing_endpoint = config.get('BASIC', 'llm_endpoint', fallback=None)
+    existing_model = config.get('OLLAMA_CONFIG' if existing_endpoint == 'ollama' else 'OPENAI_CONFIG', 'openai_model' if existing_endpoint == 'openai' else 'llm_model', fallback=None)
+
+    logging.debug(f"Existing LLM endpoint: {existing_endpoint}")
+    logging.debug(f"Existing LLM model: {existing_model}")
+
+    # Default choice is to use existing settings
+    use_existing = get_input(f"Use existing settings (LLM endpoint: {existing_endpoint}, Model: {existing_model})? (y/n) [yes]: ", default='yes', validator=validate_yes_no)
+    logging.debug(f"User chose to {'use' if use_existing.lower() in ['yes', 'y'] else 'not use'} existing settings.")
+    if use_existing.lower() in ['yes', 'y']:
+        return existing_endpoint, existing_model
+
+    llm_endpoints = ['ollama', 'openai']
+    llm_endpoint = select_from_list(llm_endpoints, "Select the LLM endpoint: ")
+    config.set('BASIC', 'llm_endpoint', llm_endpoint)  # Update the config object
+
+    if llm_endpoint == 'openai':
+        openai_model = choose_openai_model(config)
+        config.set('OPENAI_CONFIG', 'openai_model', openai_model)  # Update the config object
+        handle_openai_api_key(config)
+    elif llm_endpoint == 'ollama':
+        # Call the function from ollama.py here
+        ollama_model = ollama.main()  # This should return the selected model
+        config.set('OLLAMA_CONFIG', 'llm_model', ollama_model)  # Update the config object
+        openai_model = ollama_model  # For consistency in the return statement
+
+    # Ask if the user wants to use the same settings for CrewAI scripts
+    use_same_for_crewai = get_input("Use the same settings for CrewAI scripts? (y/n): ", default='y', validator=validate_yes_no)
+    if use_same_for_crewai.lower() in ['yes', 'y']:
+        config.set('CREWAI_SCRIPTS', 'llm_endpoint_within_generated_scripts', llm_endpoint)
+        config.set('CREWAI_SCRIPTS', 'llm_model_within_generated_scripts', openai_model)
+    else:
+        # Prompt the user to select the CrewAI endpoint and model from the same list again
+        crewai_endpoint = select_from_list(llm_endpoints, "Select the CrewAI endpoint for generated scripts: ")
+        config.set('CREWAI_SCRIPTS', 'llm_endpoint_within_generated_scripts', crewai_endpoint)
+        if crewai_endpoint == 'openai':
+            crewai_model = choose_openai_model(config)
+            config.set('CREWAI_SCRIPTS', 'llm_model_within_generated_scripts', crewai_model)
+        else:
+            crewai_model = get_input("Enter the CrewAI model for Ollama: ")
+            config.set('CREWAI_SCRIPTS', 'llm_model_within_generated_scripts', crewai_model)
+
+    # Save the configuration after successful completion
+    save_configuration(config)
+
+    return llm_endpoint, openai_model
+
+
+
+
+def handle_advanced_settings(config):
+    try:
+        advanced_settings = get_input("Would you like to view advanced settings? (yes/no) [no]: ", default='no', validator=validate_yes_no)
+        if advanced_settings.lower() in ['yes', 'y']:
+            use_remote_ollama = get_input("Would you like to run Ollama on a cloud server using an ngrok tunnel? (yes/no): ", validator=validate_yes_no)
+            if use_remote_ollama.lower() in ['yes', 'y']:
+                # Check if there is an existing ngrok API key
+                existing_ngrok_key = config.get('AUTHENTICATORS', 'ngrok_api_key', fallback='')
+                if existing_ngrok_key:
+                    use_existing_key = get_input(f"Use existing ngrok API key ({get_redacted_api_key(existing_ngrok_key)})? (y/n): ", validator=validate_yes_no)
+                    if use_existing_key.lower() in ['no', 'n']:
+                        new_key = get_input("Enter your new ngrok API key: ", validator=lambda x: x.strip() != '')
+                        if new_key:
+                            config['AUTHENTICATORS']['ngrok_api_key'] = new_key
+                            save_configuration(config)  # Save the updated configuration
+                else:
+                    new_key = get_input("Enter your ngrok API key: ", validator=lambda x: x.strip() != '')
+                    if new_key:
+                        config['AUTHENTICATORS']['ngrok_api_key'] = new_key
+                        save_configuration(config)  # Save the updated configuration
+
+                # Retrieve ngrok tunnel information
+                ngrok_api_key = get_ngrok_api_key()
+                tunnels = get_ngrok_tunnels(ngrok_api_key)
+                public_url = get_public_url(tunnels)
+
+                if public_url:
+                    logging.info(f"Ngrok public URL: {public_url}")
+                    # Store the public URL in the config.ini file under REMOTE_HOST_CONFIG section
+                    config['REMOTE_HOST_CONFIG']['ollama_host'] = public_url
+                    save_configuration(config)  # Save the updated configuration
+                else:
+                    logging.error("No public HTTPS tunnels found.")
+
+            # Add more advanced settings questions here as needed
+
+    except Exception as e:
+        logging.exception("An unexpected error occurred in handle_advanced_settings:")
+
+
+def check_and_refresh_ngrok_tunnel(config, retry_interval=10):
+    global ngrok_tunnel_info
+    while True:
+        try:
+            if ngrok_tunnel_info is None:
+                ngrok_api_key = get_ngrok_api_key()
+                tunnels = get_ngrok_tunnels(ngrok_api_key)
+                public_url = get_public_url(tunnels)
+
+                if public_url:
+                    ngrok_tunnel_info = public_url
+                    config['REMOTE_HOST_CONFIG']['ollama_host'] = public_url
+                    save_configuration(config)  # Save the updated configuration
+                    logging.info(f"Updated ngrok URL in config: {public_url}")
+                    return public_url
+                else:
+                    logging.info("\nNo active ngrok tunnels found.\n")
+
+            else:
+                return ngrok_tunnel_info
+
+            # Countdown for retry
+            for remaining in range(retry_interval, 0, -1):
+                sys.stdout.write(f"\rRetrying to establish ngrok tunnel connection in {remaining} seconds...")
+                sys.stdout.flush()
+                time.sleep(1)
+
+            sys.stdout.write("\rRetrying to establish ngrok tunnel connection...     \n")
+            sys.stdout.flush()
+
+        except Exception as e:
+            logging.error(f"Error checking or refreshing ngrok URL: {e}")
+            time.sleep(retry_interval)
 
 def truncate_overall_goal(overall_goal, max_length=40):
     """Truncate the overall goal to a maximum length."""
@@ -228,51 +358,6 @@ def handle_openai_api_key(config):
         new_key = get_input("Enter your OpenAI API key: ")
         config['AUTHENTICATORS']['openai_api_key'] = new_key
 
-def choose_llm_endpoint_and_model(config):
-    """Prompt the user to choose the LLM endpoint and model, or keep the existing ones."""
-    existing_endpoint = config.get('BASIC', 'llm_endpoint', fallback=None)
-    existing_model = config.get('OLLAMA_CONFIG' if existing_endpoint == 'ollama' else 'OPENAI_CONFIG', 'openai_model' if existing_endpoint == 'openai' else 'llm_model', fallback=None)
-
-    logging.debug(f"Existing LLM endpoint: {existing_endpoint}")
-    logging.debug(f"Existing LLM model: {existing_model}")
-
-    # Default choice is to use existing settings
-    use_existing = get_input(f"Use existing settings (LLM endpoint: {existing_endpoint}, Model: {existing_model})? (y/n) [yes]: ", default='yes', validator=validate_yes_no)
-    logging.debug(f"User chose to {'use' if use_existing.lower() in ['yes', 'y'] else 'not use'} existing settings.")
-    if use_existing.lower() in ['yes', 'y']:
-        return existing_endpoint, existing_model
-
-    llm_endpoints = ['ollama', 'openai']
-    llm_endpoint = select_from_list(llm_endpoints, "Select the LLM endpoint: ")
-    config.set('BASIC', 'llm_endpoint', llm_endpoint)  # Update the config object
-
-    if llm_endpoint == 'openai':
-        openai_model = choose_openai_model(config)
-        config.set('OPENAI_CONFIG', 'openai_model', openai_model)  # Update the config object
-        handle_openai_api_key(config)
-    elif llm_endpoint == 'ollama':
-        # Call the function from ollama.py here
-        ollama_model = ollama.main()  # This should return the selected model
-        config.set('OLLAMA_CONFIG', 'llm_model', ollama_model)  # Update the config object
-        openai_model = ollama_model  # For consistency in the return statement
-
-    # Ask if the user wants to use the same settings for CrewAI scripts
-    use_same_for_crewai = get_input("Use the same settings for CrewAI scripts? (y/n): ", default='y', validator=validate_yes_no)
-    if use_same_for_crewai.lower() in ['yes', 'y']:
-        config.set('CREWAI_SCRIPTS', 'llm_endpoint_within_generated_scripts', llm_endpoint)
-        config.set('CREWAI_SCRIPTS', 'llm_model_within_generated_scripts', openai_model)
-    else:
-        # Prompt the user to select the CrewAI endpoint and model from the same list again
-        crewai_endpoint = select_from_list(llm_endpoints, "Select the CrewAI endpoint for generated scripts: ")
-        config.set('CREWAI_SCRIPTS', 'llm_endpoint_within_generated_scripts', crewai_endpoint)
-        if crewai_endpoint == 'openai':
-            crewai_model = choose_openai_model(config)
-            config.set('CREWAI_SCRIPTS', 'llm_model_within_generated_scripts', crewai_model)
-        else:
-            crewai_model = get_input("Enter the CrewAI model for Ollama: ")
-            config.set('CREWAI_SCRIPTS', 'llm_model_within_generated_scripts', crewai_model)
-
-    return llm_endpoint, openai_model
 
 def clear_screen_and_logfile(logfile):
     """Clear the screen and the log file."""
@@ -336,6 +421,12 @@ def main():
     setup_logging()
     config = configparser.ConfigParser()
     config.read('config.ini')
+
+    # Check and set the OLLAMA_HOST
+    if not config.has_option('REMOTE_HOST_CONFIG', 'ollama_host'):
+        config.set('REMOTE_HOST_CONFIG', 'ollama_host', 'localhost:11434')
+        save_configuration(config)
+
     log_initial_config(config)
 
     # Check for the latest version and generate startup message
@@ -344,7 +435,7 @@ def main():
     logging.info(startup_message)
 
     overall_goal = get_input("Please specify your overall goal: ")
-    
+
     # Default answer set to 3 for the number of alternative crews
     num_alternative_crews = get_input("How many alternative crews do you wish to generate? [3]: ", default='3', validator=validate_positive_int)
     
@@ -353,6 +444,13 @@ def main():
 
     # Choose LLM Endpoint and Model or use existing settings
     llm_endpoint, llm_model = choose_llm_endpoint_and_model(config)
+
+    # Only handle advanced settings if LLM endpoint is Ollama
+    if llm_endpoint == 'ollama':
+        handle_advanced_settings(config)
+
+    # Check and refresh ngrok tunnel
+    check_and_refresh_ngrok_tunnel(config)
 
     # Automatically save the settings to config.ini
     save_configuration(config)
