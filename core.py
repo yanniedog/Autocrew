@@ -313,16 +313,18 @@ class AutoCrew():
     def concatenate_crew_data(self, csv_file_paths):
         # Enclose each header cell in double quotes
         concatenated_csv_data = '"crew_name","role","goal","backstory","assigned_task","allow_delegation"\n'
-        
+
         for file_path in csv_file_paths:
             crew_name, csv_data = self.extract_csv_data(file_path)
             if csv_data:
                 concatenated_csv_data += csv_data
-                
+
         # Log the concatenated CSV data at DEBUG level
         logging.debug(f"Concatenated CSV Data:\n{concatenated_csv_data}")
-        
-        json_data_str = json.dumps([row for row in csv.DictReader(io.StringIO(concatenated_csv_data))])
+
+        json_data_str = json.dumps(
+            list(csv.DictReader(io.StringIO(concatenated_csv_data)))
+        )
         return concatenated_csv_data, json_data_str
 
     def extract_csv_data(self, file_path):
@@ -339,7 +341,9 @@ class AutoCrew():
                 return None, None
 
             # Format each line with the crew name and remove trailing newlines
-            csv_data_with_crew_name = [f'"{crew_name}",' + line.strip() for line in csv_lines]
+            csv_data_with_crew_name = [
+                f'"{crew_name}",{line.strip()}' for line in csv_lines
+            ]
             return crew_name, '\n'.join(csv_data_with_crew_name) + '\n'
 
 
@@ -352,15 +356,7 @@ class AutoCrew():
         crew_names_str = ', '.join(unique_crew_names)
         num_crews = len(unique_crew_names)
 
-        # Construct the ranking prompt
-        prompt = (
-            f"There are {num_crews} different crews named {crew_names_str}. "
-            f"Analyze these crews to determine their suitability for successfully completing the task: {overall_goal}. "
-            f"The crews are represented in a JSON object format: {json_data_str}. "
-            "Please provide a ranking of the crews by their names, with the most suitable crew listed first. "
-            "Also, provide a brief critique for each crew, highlighting their strengths and weaknesses."
-        )
-        return prompt
+        return f"There are {num_crews} different crews named {crew_names_str}. Analyze these crews to determine their suitability for successfully completing the task: {overall_goal}. The crews are represented in a JSON object format: {json_data_str}. Please provide a ranking of the crews by their names, with the most suitable crew listed first. Also, provide a brief critique for each crew, highlighting their strengths and weaknesses."
 
 
 

@@ -315,14 +315,15 @@ def handle_ranking(args, autocrew, truncated_overall_goal, csv_file_paths):
             sys.exit(1)
 
 def generate_startup_message(latest_version, version_message):
-    startup_message = ("\nWelcome to AutoCrew!\n" +
-                       "Use the -? or -h command line options to display help information.\n" +
-                       "Settings can be modified within \"config.ini\". Scripts are saved in the \"scripts\" subdirectory.\n" +
-                       "If you experience any errors, please create an issue on Github and attach \"autocrew.log\":\n" +
-                       "https://github.com/yanniedog/autocrew/issues/new\n" +
-                       f"\nAutoCrew version: {AUTOCREW_VERSION}\n" +
-                       f"{version_message}\n")
-    return startup_message
+    return (
+        "\nWelcome to AutoCrew!\n"
+        + "Use the -? or -h command line options to display help information.\n"
+        + "Settings can be modified within \"config.ini\". Scripts are saved in the \"scripts\" subdirectory.\n"
+        + "If you experience any errors, please create an issue on Github and attach \"autocrew.log\":\n"
+        + "https://github.com/yanniedog/autocrew/issues/new\n"
+        + f"\nAutoCrew version: {AUTOCREW_VERSION}\n"
+        + f"{version_message}\n"
+    )
 
 
 def parse_arguments():

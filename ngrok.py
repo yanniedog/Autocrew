@@ -21,18 +21,21 @@ def get_ngrok_tunnels(api_key):
 
 # Function to extract the public URL from the tunnel information
 def get_public_url(tunnels):
-    for tunnel in tunnels:
-        if tunnel['proto'] == 'https':  # Assuming you want the HTTPS URL
-            return tunnel['public_url']
-    return None
+    return next(
+        (
+            tunnel['public_url']
+            for tunnel in tunnels
+            if tunnel['proto'] == 'https'
+        ),
+        None,
+    )
 
 # Main function to execute the script
 def main():
     try:
         ngrok_api_key = get_ngrok_api_key()
         tunnels = get_ngrok_tunnels(ngrok_api_key)
-        public_url = get_public_url(tunnels)
-        if public_url:
+        if public_url := get_public_url(tunnels):
             print(f"Ngrok public URL: {public_url}")
         else:
             print("No public HTTPS tunnels found.")

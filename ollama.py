@@ -178,11 +178,10 @@ def scrape_and_list_urls(base_url):
         model_url = f"{base_url}{selected_model}/tags"
         print(f"Formulated URL: {model_url}")
 
-        ollama_run_strings = scrape_ollama_run_strings(model_url)
-
-        if ollama_run_strings:
-            ollama_model_to_pull = select_ollama_run_string(ollama_run_strings)
-            if ollama_model_to_pull:
+        if ollama_run_strings := scrape_ollama_run_strings(model_url):
+            if ollama_model_to_pull := select_ollama_run_string(
+                ollama_run_strings
+            ):
                 print(f"You selected: {ollama_model_to_pull}")
                 return ollama_model_to_pull
             else:
@@ -190,7 +189,7 @@ def scrape_and_list_urls(base_url):
         else:
             print("No 'ollama run' strings found on the model page.")
             return None
-    
+
     except requests.RequestException as e:
         print(f"Error occurred: {e}")
         return None
@@ -216,10 +215,10 @@ def scrape_ollama_run_strings(model_url):
 def select_ollama_run_string(ollama_run_strings):
     if not ollama_run_strings:
         return None
-    
+
     # Remove the "ollama run " part from each string
     display_strings = [run_string.replace('ollama run ', '') for run_string in ollama_run_strings]
-    
+
     print("Available model strings:")
     for idx, display_string in enumerate(display_strings, 1):
         print(f"{idx}. {display_string}")
@@ -228,8 +227,7 @@ def select_ollama_run_string(ollama_run_strings):
     if choice is None:
         return None
 
-    selected_value = ollama_run_strings[choice - 1].replace('ollama run ', '')
-    return selected_value
+    return ollama_run_strings[choice - 1].replace('ollama run ', '')
 
 
 def update_config(section, option, value):
@@ -273,8 +271,7 @@ def main():
 
         elif choice == len(models['models']) + 1:
             base_url = "https://ollama.ai/library/"
-            selected_model = scrape_and_list_urls(base_url)
-            if selected_model:
+            if selected_model := scrape_and_list_urls(base_url):
                 model_name = selected_model
                 print(f"Attempting to download model: {model_name}...")
                 result = pull_model(model_name, verbose=True)
