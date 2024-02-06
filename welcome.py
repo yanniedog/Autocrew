@@ -42,8 +42,7 @@ def get_ranked_crews(overall_goal):
     # Map each file to its corresponding Greek alphabet crew name
     ranked_crews = {}
     for file_name in matching_files:
-        match = pattern.match(file_name)
-        if match:
+        if match := pattern.match(file_name):
             greek_alphabet = match.group(1)  # Extract the Greek alphabet suffix from the filename
             first_letter = greek_alphabet[0]  # Get the first letter of the Greek alphabet
             ranked_crews[first_letter] = f"{greek_alphabet.capitalize()} Crew"  # Capitalize the first letter and append "Crew"
@@ -153,10 +152,14 @@ def get_user_selected_crew(ranked_crews):
 def find_script_path(truncated_goal, selected_letter, script_dir):
     """Find the script path based on the truncated goal and selected letter."""
     script_pattern = re.compile(rf"crewai-autocrew-\d{{8}}-\d{{6}}-{truncated_goal}-({selected_letter})\.py$")
-    for file_name in os.listdir(script_dir):
-        if script_pattern.match(file_name):
-            return os.path.join(script_dir, file_name)
-    return None
+    return next(
+        (
+            os.path.join(script_dir, file_name)
+            for file_name in os.listdir(script_dir)
+            if script_pattern.match(file_name)
+        ),
+        None,
+    )
 
 def execute_script(script_path):
     """Execute the selected script."""
@@ -267,11 +270,9 @@ def choose_llm_endpoint_and_model(config):
         config.set('CREWAI_SCRIPTS', 'llm_endpoint_within_generated_scripts', crewai_endpoint)
         if crewai_endpoint == 'openai':
             crewai_model = choose_openai_model(config)
-            config.set('CREWAI_SCRIPTS', 'llm_model_within_generated_scripts', crewai_model)
         else:
             crewai_model = get_input("Enter the CrewAI model for Ollama: ")
-            config.set('CREWAI_SCRIPTS', 'llm_model_within_generated_scripts', crewai_model)
-
+        config.set('CREWAI_SCRIPTS', 'llm_model_within_generated_scripts', crewai_model)
     return llm_endpoint, openai_model
 
 def clear_screen_and_logfile(logfile):
@@ -344,10 +345,10 @@ def main():
     logging.info(startup_message)
 
     overall_goal = get_input("Please specify your overall goal: ")
-    
+
     # Default answer set to 3 for the number of alternative crews
     num_alternative_crews = get_input("How many alternative crews do you wish to generate? [3]: ", default='3', validator=validate_positive_int)
-    
+
     # Default answer set to 'yes' for ranking
     rank_crews = get_input("Do you want the crews to be ranked afterwards? (yes/no) [yes]: ", default='yes', validator=validate_yes_no) in ['yes', 'y']
 
@@ -367,9 +368,6 @@ def main():
         if rank_crews:
             handle_ranked_crews(overall_goal)
             print_ranking_csv(overall_goal)  # Print the ranking CSV file after ranking is completed
-        else:
-            # Additional logic if ranking is not performed
-            pass
     else:
         logging.error("Autocrew script execution failed.")
 
