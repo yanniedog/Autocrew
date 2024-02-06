@@ -44,8 +44,7 @@ def get_ranked_crews(overall_goal):
     # Map each file to its corresponding Greek alphabet crew name
     ranked_crews = {}
     for file_name in matching_files:
-        match = pattern.match(file_name)
-        if match:
+        if match := pattern.match(file_name):
             greek_alphabet = match.group(1)  # Extract the Greek alphabet suffix from the filename
             first_letter = greek_alphabet[0]  # Get the first letter of the Greek alphabet
             ranked_crews[first_letter] = f"{greek_alphabet.capitalize()} Crew"  # Capitalize the first letter and append "Crew"
@@ -73,13 +72,11 @@ def get_input(prompt, default=None, validator=None):
             logging.debug(f"Prompt: {prompt.strip()} | User input: {user_input} (default)")
         else:
             logging.debug(f"Prompt: {prompt.strip()} | User input: {user_input}")
-        
-        # If no validator is provided, or if the validator returns True, return the input
+
         if validator is None or validator(user_input):
             return user_input
-        else:
-            logging.debug(f"Invalid input: {user_input}")
-            logging.info("Invalid input, please try again.")
+        logging.debug(f"Invalid input: {user_input}")
+        logging.info("Invalid input, please try again.")
 
 def validate_yes_no(value, default=None):
     """Validate if the provided value is a yes/no response or default."""
@@ -162,10 +159,14 @@ def get_user_selected_crew(ranked_crews):
 def find_script_path(truncated_goal, selected_letter, script_dir):
     """Find the script path based on the truncated goal and selected letter."""
     script_pattern = re.compile(rf"crewai-autocrew-\d{{8}}-\d{{6}}-{truncated_goal}-({selected_letter})\.py$")
-    for file_name in os.listdir(script_dir):
-        if script_pattern.match(file_name):
-            return os.path.join(script_dir, file_name)
-    return None
+    return next(
+        (
+            os.path.join(script_dir, file_name)
+            for file_name in os.listdir(script_dir)
+            if script_pattern.match(file_name)
+        ),
+        None,
+    )
 
 def execute_script(script_path):
     """Execute the selected script."""
@@ -280,11 +281,9 @@ def choose_llm_endpoint_and_model(config):
         config.set('CREWAI_SCRIPTS', 'llm_endpoint_within_generated_scripts', crewai_endpoint)
         if crewai_endpoint == 'openai':
             crewai_model = choose_openai_model(config)
-            config.set('CREWAI_SCRIPTS', 'llm_model_within_generated_scripts', crewai_model)
         else:
             crewai_model = get_input("Enter the CrewAI model for Ollama: ")
-            config.set('CREWAI_SCRIPTS', 'llm_model_within_generated_scripts', crewai_model)
-
+        config.set('CREWAI_SCRIPTS', 'llm_model_within_generated_scripts', crewai_model)
     return llm_endpoint, openai_model
 
 def clear_screen_and_logfile(logfile):
@@ -348,25 +347,26 @@ def handle_advanced_settings(config):
         if advanced_settings.lower() in ['yes', 'y']:
             use_remote_ollama = get_input("Would you like to run Ollama on a cloud server using an ngrok tunnel? (yes/no): ", validator=validate_yes_no)
             if use_remote_ollama.lower() in ['yes', 'y']:
-                # Check if there is an existing ngrok API key
-                existing_ngrok_key = config.get('AUTHENTICATORS', 'ngrok_api_key', fallback='')
-                if existing_ngrok_key:
+                if existing_ngrok_key := config.get(
+                    'AUTHENTICATORS', 'ngrok_api_key', fallback=''
+                ):
                     use_existing_key = get_input(f"Use existing ngrok API key ({get_redacted_api_key(existing_ngrok_key)})? (y/n): ", validator=validate_yes_no)
                     if use_existing_key.lower() in ['no', 'n']:
-                        new_key = get_input("Enter your new ngrok API key: ", validator=lambda x: x.strip() != '')
-                        if new_key:
+                        if new_key := get_input(
+                            "Enter your new ngrok API key: ",
+                            validator=lambda x: x.strip() != '',
+                        ):
                             config['AUTHENTICATORS']['ngrok_api_key'] = new_key
-                else:
-                    new_key = get_input("Enter your ngrok API key: ", validator=lambda x: x.strip() != '')
-                    if new_key:
-                        config['AUTHENTICATORS']['ngrok_api_key'] = new_key
+                elif new_key := get_input(
+                    "Enter your ngrok API key: ",
+                    validator=lambda x: x.strip() != '',
+                ):
+                    config['AUTHENTICATORS']['ngrok_api_key'] = new_key
 
                 # Retrieve ngrok tunnel information
                 ngrok_api_key = get_ngrok_api_key()
                 tunnels = get_ngrok_tunnels(ngrok_api_key)
-                public_url = get_public_url(tunnels)
-
-                if public_url:
+                if public_url := get_public_url(tunnels):
                     logging.info(f"Ngrok public URL: {public_url}")
                     # Store the public URL in the config.ini file under REMOTE_HOST_CONFIG section
                     config['REMOTE_HOST_CONFIG']['ollama_host'] = public_url
@@ -376,7 +376,7 @@ def handle_advanced_settings(config):
                 # Save the updated configuration
                 save_configuration(config)
 
-            # Add more advanced settings questions here as needed
+                    # Add more advanced settings questions here as needed
 
     except Exception as e:
         logging.exception("An unexpected error occurred in handle_advanced_settings:")
@@ -408,12 +408,10 @@ def handle_ngrok_reconnection(config):
     retry_interval = 10  # seconds
     max_retries = 3  # Adjust the number of retries as needed
     for attempt in range(max_retries):
-        ngrok_url = check_and_refresh_ngrok_tunnel(config)  # Pass the 'config' variable as an argument
-        if ngrok_url:
+        if ngrok_url := check_and_refresh_ngrok_tunnel(config):
             return ngrok_url
-        else:
-            print(f"\rRetrying to establish ngrok tunnel connection in {retry_interval} seconds... (Attempt {attempt + 1} of {max_retries})", end='', flush=True)
-            time.sleep(retry_interval)
+        print(f"\rRetrying to establish ngrok tunnel connection in {retry_interval} seconds... (Attempt {attempt + 1} of {max_retries})", end='', flush=True)
+        time.sleep(retry_interval)
 
 def main():
     setup_logging()
@@ -468,9 +466,6 @@ def main():
         if rank_crews:
             handle_ranked_crews(overall_goal)
             print_ranking_csv(overall_goal)  # Print the ranking CSV file after ranking is completed
-        else:
-            # Additional logic if ranking is not performed
-            pass
     else:
         logging.error("Autocrew script execution failed.")
 

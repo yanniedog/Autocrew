@@ -22,8 +22,7 @@ def count_tokens(string: str) -> int:
     """Returns the number of tokens in a text string."""
     encoding_name = 'cl100k_base'  # Assuming this is the encoding you want to use
     encoding = tiktoken.get_encoding(encoding_name)
-    num_tokens = len(encoding.encode(string))
-    return num_tokens
+    return len(encoding.encode(string))
 
 def get_next_crew_name(overall_goal, script_directory="scripts"):
     """Determines the next crew name based on existing files."""
@@ -36,13 +35,14 @@ def get_next_crew_name(overall_goal, script_directory="scripts"):
     existing_crew_names = [f.split('-')[-1].split('.')[0] for f in existing_files]
     existing_crew_indices = [GREEK_ALPHABETS.index(name) for name in existing_crew_names if name in GREEK_ALPHABETS]
 
-    # Find the next available Greek alphabet name
-    for i, name in enumerate(GREEK_ALPHABETS):
-        if i not in existing_crew_indices:
-            return name
-
-    # If all names are taken, append a number to the last Greek alphabet name
-    return f"{GREEK_ALPHABETS[-1]}_{len(existing_crew_indices) + 1}"
+    return next(
+        (
+            name
+            for i, name in enumerate(GREEK_ALPHABETS)
+            if i not in existing_crew_indices
+        ),
+        f"{GREEK_ALPHABETS[-1]}_{len(existing_crew_indices) + 1}",
+    )
 
 
 
@@ -122,12 +122,12 @@ def parse_csv_data(response, delimiter=',', filename=''):
 def save_csv_output(response, overall_goal, script_directory="scripts", truncation_length=40, greek_suffix=None):
     """Saves the CSV output to a file."""
     reader = csv.reader(io.StringIO(response), quotechar='"', delimiter=',', skipinitialspace=True)
-    
+
     cleaned_csv_lines = []
     for fields in reader:
         if len(fields) != 5:
             continue
-        cleaned_fields = ['"{}"'.format(field.replace('"', '""')) for field in fields]
+        cleaned_fields = [f""""{field.replace('"', '""')}\"""" for field in fields]
         cleaned_line = ','.join(cleaned_fields)
         cleaned_csv_lines.append(cleaned_line)
 
@@ -149,7 +149,7 @@ def save_csv_output(response, overall_goal, script_directory="scripts", truncati
     if not os.path.exists(directory):
         os.makedirs(directory)
     file_path = os.path.join(directory, file_name)
-    
+
     with open(file_path, 'w') as file:
         file.write(f'# {file_path}\n')
         file.write(csv_data)

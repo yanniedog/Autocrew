@@ -315,12 +315,12 @@ def handle_ranking(args, autocrew, truncated_overall_goal, csv_file_paths):
             sys.exit(1)
 
 def generate_startup_message(latest_version, version_message):
-    startup_message = ("\nWelcome to AutoCrew!\n" +
-                        f"Version: {AUTOCREW_VERSION} ({version_message})\n"
-                       "Please ask questions in the AutoCrew Discord channel: https://discord.gg/hUYcP5EdhF\n" +
-                       "If you experience errors, please upload \"autocrew.log\": https://github.com/yanniedog/autocrew/issues/new\n")
-
-    return startup_message
+    return (
+        "\nWelcome to AutoCrew!\n"
+        + f"Version: {AUTOCREW_VERSION} ({version_message})\n"
+        "Please ask questions in the AutoCrew Discord channel: https://discord.gg/hUYcP5EdhF\n"
+        + "If you experience errors, please upload \"autocrew.log\": https://github.com/yanniedog/autocrew/issues/new\n"
+    )
 
 
 def parse_arguments():

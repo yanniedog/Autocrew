@@ -26,18 +26,24 @@ def get_ngrok_tunnels(api_key):
 
 # Function to extract the public URL from the tunnel information
 def get_public_url(tunnels):
-    for tunnel in tunnels:
-        if tunnel['proto'] == 'https':  # Assuming you want the HTTPS URL
-            return tunnel['public_url']
-    return None
+    return next(
+        (
+            tunnel['public_url']
+            for tunnel in tunnels
+            if tunnel['proto'] == 'https'
+        ),
+        None,
+    )
 
 def get_colab_notebook_url(repo_api_url):
     # New function to fetch Jupyter Notebook link from GitHub
     response = requests.get(repo_api_url)
     if response.status_code == 200:
         repo_content = response.json()
-        notebook_file = next((item for item in repo_content if item['name'].endswith('.ipynb')), None)
-        if notebook_file:
+        if notebook_file := next(
+            (item for item in repo_content if item['name'].endswith('.ipynb')),
+            None,
+        ):
             return f"https://colab.research.google.com/github/{notebook_file['path']}"
     raise Exception("Failed to fetch the Jupyter Notebook URL.")
 
@@ -65,9 +71,7 @@ def main():
     try:
         ngrok_api_key = get_ngrok_api_key()
         tunnels = get_ngrok_tunnels(ngrok_api_key)
-        public_url = get_public_url(tunnels)
-
-        if public_url:
+        if public_url := get_public_url(tunnels):
             logging.info(f"Ngrok public URL: {public_url}")
             # Store the public URL in the config.ini file
             config['REMOTE_HOST_CONFIG']['ollama_host'] = public_url
@@ -80,10 +84,6 @@ def main():
             repo_api_url = "https://api.github.com/repos/yanniedog/Autocrew/contents/"
             notebook_url = get_colab_notebook_url(repo_api_url)
             display_ngrok_setup_instructions(notebook_url)
-
-            # Here you can add any retry logic or additional steps you want to perform
-            # if the ngrok tunnel is not established
-            # ...
 
     except Exception as e:
         logging.error(f"An error occurred: {e}")

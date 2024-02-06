@@ -101,18 +101,17 @@ def scrape_and_list_urls(base_url):
         print(f"You selected: {selected_model}")
         model_url = f"{base_url}{selected_model}/tags"
         print(f"Formulated URL: {model_url}")
-        ollama_run_strings = scrape_ollama_run_strings(model_url)
-
-        if ollama_run_strings:
-            ollama_model_to_pull = select_ollama_run_string(ollama_run_strings)
-            if ollama_model_to_pull:
+        if ollama_run_strings := scrape_ollama_run_strings(model_url):
+            if ollama_model_to_pull := select_ollama_run_string(
+                ollama_run_strings
+            ):
                 print(f"You selected: {ollama_model_to_pull}")
                 return ollama_model_to_pull
             else:
                 return None
         else:
             print("No 'ollama run' strings found on the model page.")
-            return None   
+            return None
     except requests.RequestException as e:
         print(f"Error occurred: {e}")
         return None
@@ -143,8 +142,7 @@ def select_ollama_run_string(ollama_run_strings):
     choice = get_user_choice("Please select the quantisation to use", len(display_strings))
     if choice is None:
         return None
-    selected_value = ollama_run_strings[choice - 1].replace('ollama run ', '')
-    return selected_value
+    return ollama_run_strings[choice - 1].replace('ollama run ', '')
 
 
 def main():
@@ -169,8 +167,7 @@ def main():
         elif choice == len(models['models']) + 1:
             # User selected to download a new model
             base_url = "https://ollama.ai/library/"
-            selected_model = scrape_and_list_urls(base_url)
-            if selected_model:
+            if selected_model := scrape_and_list_urls(base_url):
                 model_name = selected_model
                 print(f"Attempting to download model: {model_name}...")
                 result = pull_model(model_name, verbose=True)
