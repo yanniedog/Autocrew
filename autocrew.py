@@ -36,6 +36,7 @@ from typing import Any, Dict, List
 from ast import literal_eval
 
 from crewai import Agent, Crew, Process, Task
+import utils
 from langchain_community.llms import Ollama
 from langchain_community.tools import DuckDuckGoSearchRun
 from langchain.callbacks.manager import CallbackManager
@@ -372,7 +373,7 @@ def main():
     if len(sys.argv) == 1:
         # No command-line parameters provided, run the interactive setup script
         print("\nWelcome to AutoCrew!\nLet's get started.\n")
-        python_name = Utils.check_python_version()
+        python_name = utils.check_python_version()
         subprocess.run([python_name, 'welcome.py'])
         sys.exit(0)
     
