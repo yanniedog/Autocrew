@@ -206,44 +206,44 @@ class AutoCrew():
 
         
     def generate_single_script(self, i, num_scripts, overall_goal, crew_name):
-        def process_response(response):
-            try:
-                # Determine the Greek letter suffix for this crew
-                greek_suffix = get_next_crew_name(overall_goal)
-
-                # Pass the truncation length to the save_csv_output function
-                file_path = save_csv_output(response, overall_goal, truncation_length=self.overall_goal_truncation_for_filenames, greek_suffix=greek_suffix)
-                agents_data = parse_csv_data(response, delimiter=',', filename=file_path)
-                if not agents_data:
-                    raise ValueError('No agent data parsed')
-
-                # Use the truncated goal for the script filename
-                truncated_goal = overall_goal[:self.overall_goal_truncation_for_filenames].replace(" ", "-")
-                timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-                file_name = f'crewai-autocrew-{timestamp}-{truncated_goal}-{greek_suffix}.py'
-
-                # Generate crew tasks based on the agents_data
-                crew_tasks = self.generate_crew_tasks(agents_data)
-
-                # Call the standalone function with the necessary parameters
-                write_crewai_script(
-                    agents_data,
-                    crew_tasks,
-                    file_name,
-                    self.llm_endpoint_within_generated_scripts,
-                    self.llm_model_within_generated_scripts,
-                    self.add_ollama_host_url_to_crewai_scripts,
-                    self.ollama_host,
-                    self.add_api_keys_to_crewai_scripts,
-                    self.openai_api_key,
-                    self.openai_model
-                )
-                return file_path
-            except Exception as e:
-                logging.error(f"Error in processing response: {e}")
-                raise ValueError(e)
-
         try:
+            def process_response(response):
+                try:
+                    # Determine the Greek letter suffix for this crew
+                    greek_suffix = get_next_crew_name(overall_goal)
+
+                    # Pass the truncation length to the save_csv_output function
+                    file_path = save_csv_output(response, overall_goal, truncation_length=self.overall_goal_truncation_for_filenames, greek_suffix=greek_suffix)
+                    agents_data = parse_csv_data(response, delimiter=',', filename=file_path)
+                    if not agents_data:
+                        raise ValueError('No agent data parsed')
+
+                    # Use the truncated goal for the script filename
+                    truncated_goal = overall_goal[:self.overall_goal_truncation_for_filenames].replace(" ", "-")
+                    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+                    file_name = f'crewai-autocrew-{timestamp}-{truncated_goal}-{greek_suffix}.py'
+
+                    # Generate crew tasks based on the agents_data
+                    crew_tasks = self.generate_crew_tasks(agents_data)
+
+                    # Call the standalone function with the necessary parameters
+                    write_crewai_script(
+                        agents_data,
+                        crew_tasks,
+                        file_name,
+                        self.llm_endpoint_within_generated_scripts,
+                        self.llm_model_within_generated_scripts,
+                        self.add_ollama_host_url_to_crewai_scripts,
+                        self.ollama_host,
+                        self.add_api_keys_to_crewai_scripts,
+                        self.openai_api_key,
+                        self.openai_model
+                    )
+                    return file_path
+                except Exception as e:
+                    logging.error(f"Error in processing response: {e}")
+                    raise ValueError(e)
+
             # Fetch the response from the LLM using the detailed instruction
             response = self.get_agent_data(overall_goal, ',')
 
