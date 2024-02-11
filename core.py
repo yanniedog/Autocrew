@@ -173,6 +173,8 @@ class AutoCrew():
             logging.error("The number of tokens in the instruction exceeds the max_tokens limit.")
             max_response_tokens = 0
 
+        chat_completion = None
+
         try:
             if self.llm_endpoint == 'ollama' and self.ollama:
                 response = self.ollama.invoke(instruction)
@@ -181,16 +183,7 @@ class AutoCrew():
                 logging.debug(f"Number of tokens in the response: {count_tokens(response)}")
                 return response
             elif self.llm_endpoint == 'openai' and self.openai_api_key:
-                client = OpenAI(api_key=self.openai_api_key)
-                chat_completion = client.chat.completions.create(
-                    model=self.openai_model,  # Use the model directly from the configuration
-                    messages=[
-                        {"role": "system", "content": "You are a helpful assistant."},
-                        {"role": "user", "content": instruction}
-                    ],
-                    max_tokens=max_response_tokens  # Use the calculated max_response_tokens
-                )
-                response = chat_completion.choices[0].message.content.strip()
+                response = self.get_openai_response(instruction, max_tokens=max_response_tokens)
                 # Log the raw LLM output
                 logging.debug(f"Raw LLM output (OpenAI):\n{response}")
                 logging.debug(f"Number of tokens in the response: {count_tokens(response)}")
@@ -214,54 +207,64 @@ class AutoCrew():
         
     def generate_single_script(self, i, num_scripts, overall_goal, crew_name):
         def process_response(response):
-            # Determine the Greek letter suffix for this crew
-            greek_suffix = get_next_crew_name(overall_goal)
+            try:
+                # Determine the Greek letter suffix for this crew
+                greek_suffix = get_next_crew_name(overall_goal)
 
-            # Pass the truncation length to the save_csv_output function
-            file_path = save_csv_output(response, overall_goal, truncation_length=self.overall_goal_truncation_for_filenames, greek_suffix=greek_suffix)
-            agents_data = parse_csv_data(response, delimiter=',', filename=file_path)
-            if not agents_data:
-                raise ValueError('No agent data parsed')
+                # Pass the truncation length to the save_csv_output function
+                file_path = save_csv_output(response, overall_goal, truncation_length=self.overall_goal_truncation_for_filenames, greek_suffix=greek_suffix)
+                agents_data = parse_csv_data(response, delimiter=',', filename=file_path)
+                if not agents_data:
+                    raise ValueError('No agent data parsed')
 
-            # Use the truncated goal for the script filename
-            truncated_goal = overall_goal[:self.overall_goal_truncation_for_filenames].replace(" ", "-")
-            timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-            file_name = f'crewai-autocrew-{timestamp}-{truncated_goal}-{greek_suffix}.py'
+                # Use the truncated goal for the script filename
+                truncated_goal = overall_goal[:self.overall_goal_truncation_for_filenames].replace(" ", "-")
+                timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+                file_name = f'crewai-autocrew-{timestamp}-{truncated_goal}-{greek_suffix}.py'
 
-            # Generate crew tasks based on the agents_data
-            crew_tasks = self.generate_crew_tasks(agents_data)
+                # Generate crew tasks based on the agents_data
+                crew_tasks = self.generate_crew_tasks(agents_data)
 
-            # Call the standalone function with the necessary parameters
-            write_crewai_script(
-                agents_data,
-                crew_tasks,
-                file_name,
-                self.llm_endpoint_within_generated_scripts,
-                self.llm_model_within_generated_scripts,
-                self.add_ollama_host_url_to_crewai_scripts,
-                self.ollama_host,
-                self.add_api_keys_to_crewai_scripts,
-                self.openai_api_key,
-                self.openai_model
-            )
-            return file_path
-
-        # Fetch the response from the LLM using the detailed instruction
-        response = self.get_agent_data(overall_goal, ',')
-
-        # Process the LLM response
-        if not response:
-            logging.error('No response from LLM')
-            raise ValueError("Failed to get valid response from LLM.")
+                # Call the standalone function with the necessary parameters
+                write_crewai_script(
+                    agents_data,
+                    crew_tasks,
+                    file_name,
+                    self.llm_endpoint_within_generated_scripts,
+                    self.llm_model_within_generated_scripts,
+                    self.add_ollama_host_url_to_crewai_scripts,
+                    self.ollama_host,
+                    self.add_api_keys_to_crewai_scripts,
+                    self.openai_api_key,
+                    self.openai_model
+                )
+                return file_path
+            except Exception as e:
+                logging.error(f"Error in processing response: {e}")
+                raise ValueError(e)
 
         try:
-            return process_response(response)
+            # Fetch the response from the LLM using the detailed instruction
+            response = self.get_agent_data(overall_goal, ',')
+
+            if response is None:
+                logging.error("No response from LLM")
+                return ""
+            elif response == '':
+                logging.error("Empty response from LLM")
+                return ""
+            else:
+                # Process the response
+                logging.info(f"Response from LLM:\n{response}")
+                logging.info(f"Number of tokens in the response: {count_tokens(response)}")
+                file_path = process_response(response)
+                return file_path
         except ValueError as e:
             logging.error(f"Failed to process LLM response: {e}")
-            raise
-
-
-
+            raise ValueError("Failed to process LLM response.")
+        except Exception as e:
+            logging.error(f"An unexpected error occurred: {e}")
+            raise ValueError("An unexpected error occurred.")
  
     def call_llm_with_retry(self, instruction, overall_goal, process_response_func):
         max_attempts = 3
@@ -301,10 +304,14 @@ class AutoCrew():
         max_response_tokens = self.calculate_max_response_tokens(prompt)
 
         # Make the API call and process the response
+        ranked_crew = None
         if self.llm_endpoint == 'ollama' and self.ollama:
             ranked_crew = self.ollama.invoke(prompt)
         elif self.llm_endpoint == 'openai' and self.openai_api_key:
-            ranked_crew = self.get_openai_response(prompt, max_response_tokens)
+            try:
+                ranked_crew = self.get_openai_response(prompt, max_response_tokens)
+            except Exception as e:
+                logging.error(f"An unexpected error occurred: {e}")
         else:
             logging.error("Neither OpenAI API key nor Ollama instance is available.")
             return []
@@ -319,16 +326,20 @@ class AutoCrew():
         return ranked_crews, overall_summary
 
     def get_openai_response(self, prompt, max_tokens):
-        client = OpenAI(api_key=self.openai_api_key)
-        chat_completion = client.chat.completions.create(
-            model=self.openai_model,
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=max_tokens
-        )
-        return chat_completion.choices[0].message.content.strip()
+        try:
+            client = OpenAI(api_key=self.openai_api_key)
+            chat_completion = client.chat.completions.create(
+                model=self.openai_model,
+                messages=[
+                    {"role": "system", "content": "You are a helpful assistant."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=max_tokens
+            )
+            return chat_completion.choices[0].message.content.strip()
+        except Exception as e:
+            logging.error(f"An unexpected error occurred: {e}")
+            raise ValueError("An unexpected error occurred.")
 
     def calculate_max_response_tokens(self, prompt):
         prompt_token_count = count_tokens(prompt)

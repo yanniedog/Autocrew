@@ -19,6 +19,7 @@ from autocrew import check_latest_version, generate_startup_message
 from logging_config import flush_log_handlers
 from logging_config import setup_logging
 from core import AutoCrew
+import utils
 
 GREEK_ALPHABETS = ["alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta", "iota", "kappa",
                    "lambda", "mu", "nu", "xi", "omicron", "pi", "rho", "sigma", "tau", "upsilon"]
@@ -105,7 +106,8 @@ def run_autocrew_script(num_alternative_crews, overall_goal, rank_crews):
     os.environ['LOG_FILE'] = 'autocrew.log'
     os.environ['CALLED_FROM_WELCOME'] = '1'
 
-    args = ['python3', 'autocrew.py', '-m', str(num_alternative_crews), '-r', overall_goal] if rank_crews else ['python3', 'autocrew.py', '-m', str(num_alternative_crews), overall_goal]
+    python_name = utils.check_python_version()
+    args = [python_name, 'autocrew.py', '-m', str(num_alternative_crews), '-r', overall_goal] if rank_crews else [python_name, 'autocrew.py', '-m', str(num_alternative_crews), overall_goal]
     try:
         # Start the subprocess and get the output in real-time
         with subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True) as process:
@@ -162,7 +164,8 @@ def execute_script(script_path):
     """Execute the selected script."""
     try:
         logging.debug(f"Executing script: {script_path}")
-        subprocess.run(['python3', script_path], check=True)
+        python_name = utils.check_python_version()
+        subprocess.run([python_name, script_path], check=True)
     except subprocess.CalledProcessError as e:
         logging.error(f"An error occurred while executing the script: {e}")
     except FileNotFoundError:

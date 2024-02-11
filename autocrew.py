@@ -372,7 +372,8 @@ def main():
     if len(sys.argv) == 1:
         # No command-line parameters provided, run the interactive setup script
         print("\nWelcome to AutoCrew!\nLet's get started.\n")
-        subprocess.run(['python3', 'welcome.py'])
+        python_name = Utils.check_python_version()
+        subprocess.run([python_name, 'welcome.py'])
         sys.exit(0)
     
     args, parser = parse_arguments()

@@ -11,4 +11,6 @@ crewai>=0.1.32
 packaging>=20.9
 beautifulsoup4
 tqdm
+bs4
+crewai
 

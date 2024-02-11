@@ -5,11 +5,12 @@ import io
 import logging
 import os
 import re
+import sys
 import time
 import tiktoken
 from textwrap import dedent
 from datetime import datetime
-
+import subprocess
 
 
 GREEK_ALPHABETS = [
@@ -287,3 +288,29 @@ def write_main_function(file):
         '    print(result)\n'
     )
     file.write(main_function)
+
+
+def check_python_version():
+    try:
+        # Try running `python3 --version`
+        result = subprocess.run(["python3", "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        if result.returncode == 0:
+            print("Python 3 is available:", result.stdout.strip())
+            return "python3"
+        else:
+            raise Exception("Python 3 check failed")
+    except Exception as e:
+        # If the first command fails, try running `python --version`
+        try:
+            result = subprocess.run(["python", "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            if result.returncode == 0:
+                print("Python is available:", result.stdout.strip())
+                return "python"
+            else:
+                print("Error checking Python version")
+        except Exception as e2:
+            print("Unable to determine Python version")
+            raise e2
+        
+
+
