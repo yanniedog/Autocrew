@@ -8,7 +8,7 @@ Welcome to AutoCrew! This application uses advanced language models like Ollama 
 
 ## Setting up Your Environment
 
-### Step 1: Install Windows Subsystem for Linux (WSL)
+### (WSL) Step 1: Install Windows Subsystem for Linux (WSL)
 AutoCrew runs on Ubuntu, so Windows users will need to set up WSL. Here's how:
 
 1. **Open PowerShell as Administrator**: Search for PowerShell in your Start menu, right-click it, and select "Run as administrator".
@@ -19,13 +19,13 @@ AutoCrew runs on Ubuntu, so Windows users will need to set up WSL. Here's how:
    This will install WSL with the default Ubuntu distribution.
 3. **Restart Your Computer**: Once the installation is complete, restart your computer.
 
-### Step 2: Setting Up Ubuntu
+### (WSL) Step 2: Setting Up Ubuntu
 After your computer restarts, follow these steps:
 
 1. **Open Ubuntu**: Search for Ubuntu in your Start menu and open it. The first launch will take a few minutes as it completes the setup.
 2. **Create a User Account**: You'll be prompted to create a username and a password. Remember these, as you'll need them for accessing Ubuntu.
 
-### Step 3: Install Python on Ubuntu
+### (WSL) Step 3: Install Python on Ubuntu
 AutoCrew requires Python. Here's how to install it:
 
 1. **Update Ubuntu**: In your Ubuntu window, type:
@@ -37,6 +37,20 @@ AutoCrew requires Python. Here's how to install it:
    ```
    sudo apt install python3
    ```
+
+### (Conda) Step1: Install Miniconda
+AutoCrew requires Python. Here's how to install it:
+
+1. **Download Miniconda**: Go to the [Miniconda download page](https://docs.conda.io/en/latest/miniconda.
+2. **Install Miniconda**: Once you've downloaded the installer, run it.
+3. **Create a conda Environment**: In the Miniconda window, type:
+```
+   conda create -n autocrew python=3.8
+```
+5. **Activate the conda Environment**: Next, activate the conda environment by typing: 
+```
+   conda activate autocrew
+```
 
 ## Downloading and Running AutoCrew
 
@@ -50,7 +64,13 @@ AutoCrew requires Python. Here's how to install it:
    cd autocrew
    ```
 
-### Step 2: Run AutoCrew
+### Step 2: Install Dependencies
+1. **Install Requirements**: In the same Ubuntu window, type:
+```
+   pip install -r requirements.txt
+```
+
+### Step 3: Run AutoCrew
 1. **Start AutoCrew**: In the same Ubuntu window, type:
    ```
    python3 autocrew.py
