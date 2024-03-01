@@ -49,7 +49,14 @@ AutoCrew requires Python. Here's how to install it:
    ```
    cd autocrew
    ```
-
+3. ** Setup a virtual environment and activate
+   ```
+   python3 -m venv autocrew && source autocrew/bin/activate
+   ```
+ 3. ** Install required modules via pip
+   ```
+   pip install -r requirements.txt
+   ```  
 ### Step 2: Run AutoCrew
 1. **Start AutoCrew**: In the same Ubuntu window, type:
    ```
