@@ -149,7 +149,7 @@ class AutoCrew():
             f'Create a dataset in a CSV format with each field enclosed in double quotes, '
             f'for a team of agents. Overall goal for the team is: "{overall_goal}". '
             f'You need to design agents that will work effectively and collaboratively to achieve the team goal successfully. '
-            f'Agents are identified by their role. You must provide each agent in your team the title of their role, their individual goal within the team, their personal backstory and individual skillset, specific details of a task assigned to them which will help ensure the team goal is completed successfully, and whether or not the agent is permitted to delegate certain duties to other agents (True/False). '
+            f'Agents are identified by their role. You must provide each agent in your team the title of their role, their individual goal within the team, their personal backstory, specific details of a task assigned to them which will help ensure the team goal is completed successfully, and whether or not the agent is permitted to delegate certain duties to other agents (True/False). '
             f'Your CSV must contain the columns "role", "goal", "backstory", "assigned_task", "allow_delegation". '
             f'Use the delimiter "{delimiter}" to separate the fields. '
             f'Maintain consistent formatting. Each agent\'s details should be in quotes to avoid confusion with the delimiter. '
